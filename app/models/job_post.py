@@ -12,7 +12,7 @@ class JobPost(Base):
     description = Column(Text, nullable=True)
     requirements = Column(Text, nullable=True)
     responsibilities = Column(Text, nullable=True)
-    link = Column(String, nullable=False)
+    link = Column(String, unique=True, nullable=False)
     keywords = Column(ARRAY(String), nullable=False)
 
     posted_time = Column(DateTime(timezone=True), nullable=True)
