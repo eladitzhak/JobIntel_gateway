@@ -1,0 +1,16 @@
+jobintel_main/
+├── app/
+│   ├── __init__.py
+│   ├── main.py               # Entry point
+│   ├── models/               # SQLAlchemy models
+│   ├── schemas/              # Pydantic schemas
+│   ├── routers/              # API endpoints
+│   ├── services/             # Business logic
+│   ├── core/                 # Config, DB, auth
+│   └── tasks/                # Background tasks (e.g., email)
+├── alembic/                  # DB migrations
+├── .env
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+└── README.md
