@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime, Boolean, ARRAY, Text
 from sqlalchemy.sql import func
 from app.core.database import Base
 
+
 class JobPost(Base):
     __tablename__ = "job_posts"
 
@@ -26,3 +27,11 @@ class JobPost(Base):
     error_reason = Column(String, nullable=True)
 
     hidden = Column(Boolean, default=False)  # if user-reported or admin-hidden
+
+    ##USED BY OTHER MICROSERVICES
+    snippet = Column(String, nullable=True)
+    scraped_at = Column(DateTime(timezone=True), nullable=True)
+    last_validated_by = Column(String, nullable=True)
+    validation_notes = Column(String, nullable=True)
+    fields_updated = Column(ARRAY(String), default=[])
+    is_user_reported = Column(Boolean, default=False)
