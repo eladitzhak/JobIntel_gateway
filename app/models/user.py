@@ -14,3 +14,4 @@ class User(Base):
     subscribed_keywords = Column(ARRAY(String), default=[])
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
+    name = Column(String, nullable=True)

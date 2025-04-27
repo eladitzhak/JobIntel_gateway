@@ -13,8 +13,8 @@ class Settings(BaseSettings):
     # GOOGLE AUTH
     google_client_id: str = Field(..., alias="GOOGLE_CLIENT_ID")
     google_client_secret: str = Field(..., alias="GOOGLE_CLIENT_SECRET")
-    google_redirect_uri: str = Field(..., alias="GOOGLE_REDIRECT_URI")
-    secret_key_for_session: str = Field(..., alias="SECRET_KEY_FOR_SESSION")
+    # google_redirect_uri: str = Field(..., alias="GOOGLE_REDIRECT_URI")
+    session_secret: str = Field(..., alias="SESSION_SECRET")
 
     class Config:
         env_file = ".env"

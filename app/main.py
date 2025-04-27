@@ -4,9 +4,15 @@ from sqlalchemy import text
 from fastapi import Depends
 from app.core.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.middleware.sessions import SessionMiddleware
+from app.routers import auth
 
 
 app = FastAPI(title="JobIntel Gateway API")
+
+app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
+
+app.include_router(auth.router)
 
 
 @app.get("/")
