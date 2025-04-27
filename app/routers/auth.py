@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Request, Depends
 from starlette.responses import RedirectResponse, JSONResponse
-from starlette.responses import RedirectResponse
 from authlib.integrations.starlette_client import OAuth
 from sqlalchemy.orm import Session
 from app.core.config import settings
