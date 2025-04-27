@@ -57,6 +57,7 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
         "id": user.id,
         "email": user.email,
         "name": user_info.get("name"),
+        # "picture": user_info.get("picture")
     }
 
     return RedirectResponse(url="/me")
