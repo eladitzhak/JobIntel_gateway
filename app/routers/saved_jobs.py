@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, Request, HTTPException, Query
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from app.core.database import get_db
 from app.models.saved_job import SavedJob
 from app.models.job_post import JobPost
-from app.schemas.saved_jobs import SaveJobResponse
+from app.schemas.saved_jobs import SaveJobResponse, SavedJobsResponse, SavedJobOut
 
 
 router = APIRouter()
@@ -85,3 +85,56 @@ async def unsave_job(
     await db.commit()
 
     return {"message": "Job unsaved successfully"}
+
+
+@router.get(
+    "/saved-jobs",
+    response_model=SavedJobsResponse,
+    responses={
+        401: {"description": "Not logged in"},
+    },
+)
+async def list_saved_jobs(
+    request: Request,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+) -> SavedJobsResponse:
+    session_user = request.session.get("user")
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Not logged in")
+
+    user_id = session_user["id"]
+    offset = (page - 1) * page_size
+
+    # Query saved jobs
+    saved_query = await db.execute(
+        select(SavedJob)
+        .where(SavedJob.user_id == user_id)
+        .offset(offset)
+        .limit(page_size)
+        .order_by(SavedJob.saved_at.desc())
+    )
+    saved_jobs = saved_query.scalars().all()
+
+    # Query total saved jobs
+    total_query = await db.execute(
+        select(func.count()).select_from(SavedJob).where(SavedJob.user_id == user_id)
+    )
+    total = total_query.scalar_one()
+
+    return SavedJobsResponse(
+        saved_jobs=[
+            SavedJobOut(
+                job_id=saved.job_id,
+                saved_at=saved.saved_at,
+                title=None,  # Improve later
+                company=None,
+                location=None,
+            )
+            for saved in saved_jobs
+        ],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )

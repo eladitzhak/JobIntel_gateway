@@ -8,6 +8,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.routers import auth, jobs
 from app.routers import subscription
 from app.routers import job_applications
+from app.routers import saved_jobs
 
 app = FastAPI(title="JobIntel Gateway API")
 
@@ -17,6 +18,7 @@ app.include_router(auth.router)
 app.include_router(jobs.router)
 app.include_router(subscription.router)
 app.include_router(job_applications.router)
+app.include_router(saved_jobs.router)
 
 
 @app.get("/")
