@@ -10,6 +10,8 @@ from app.routers import subscription
 from app.routers import job_applications
 from app.routers import saved_jobs
 from app.routers import applied_jobs
+from app.routers import viewed_jobs
+
 
 app = FastAPI(title="JobIntel Gateway API")
 
@@ -21,6 +23,7 @@ app.include_router(subscription.router)
 app.include_router(job_applications.router)
 app.include_router(saved_jobs.router)
 app.include_router(applied_jobs.router)
+app.include_router(viewed_jobs.router)
 
 
 @app.get("/")
