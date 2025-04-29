@@ -2,13 +2,14 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 from app.core.database import get_db
 from app.schemas.job import JobsResponse, JobOut
 from app.models.job_post import JobPost  # adjust import path if needed
 from app.models.job_view import JobView  # Import JobView
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi import status
+from datetime import datetime
 
 
 router = APIRouter()
@@ -93,7 +94,7 @@ async def get_job_details(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # ✅ Only log view if not already exists
+    # ✅ Update or insert the JobView with latest viewed_at timestamp
     session_user = request.session.get("user")
     if session_user:
         user_id = session_user["id"]
@@ -103,12 +104,24 @@ async def get_job_details(
             )
         )
         existing_view = view_check.scalar_one_or_none()
-        if not existing_view:
+        if existing_view:
+            await db.execute(
+                update(JobView)
+                .where(
+                    JobView.user_id == user_id,
+                    JobView.job_post_id == job_id,
+                )
+                .values(viewed_at=datetime.utcnow())
+            )
+        else:
+            # If no existing view, create a new one
             db.add(JobView(user_id=user_id, job_post_id=job_id))
-            try:
-                await db.commit()
-            except IntegrityError:
-                await db.rollback()  # for safety
-                pass  # or log if needed
+        try:
+            await db.commit()
+        except Exception as e:
+            # Handle commit failure (e.g., rollback, log error, etc.)
+            # TODO: LOGGE
+            await db.rollback()  # for safety
+            pass  # or log if needed
 
     return job
