@@ -10,9 +10,13 @@ class JobOut(BaseModel):
     location: Optional[str]
     description: Optional[str]
     requirements: Optional[str]
+    responsibilities: Optional[str]
     posted_time: Optional[datetime]
     link: Optional[str]
     source: Optional[str]
+    scraped_time: Optional[datetime] = None
+    validated: Optional[bool] = None
+    hidden: Optional[bool] = None
 
     class Config:
         from_attributes = True  # <-- THIS IS THE NEW Pydantic v2 equivalent of orm_mode
