@@ -120,8 +120,8 @@ async def get_job_details(
             await db.commit()
         except Exception as e:
             # Handle commit failure (e.g., rollback, log error, etc.)
-            # TODO: LOGGE
+            import logging
+            logging.error(f"Failed to commit transaction for job view update: {e}")
             await db.rollback()  # for safety
-            pass  # or log if needed
 
     return job
