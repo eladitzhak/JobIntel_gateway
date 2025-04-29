@@ -27,13 +27,13 @@ async def report_job(
     session_user = request.session.get("user")
     if not session_user:
         raise HTTPException(status_code=401, detail="Not logged in")
-    if not report_data.job_id or not report_data.reason:
+    if not report_data.job_post_id or not report_data.reason:
         raise HTTPException(status_code=400, detail="Job ID and reason are required.")
     user_id = session_user["id"]
 
     # Validate job exists
     job_query = await db.execute(
-        select(JobPost).where(JobPost.id == report_data.job_id)
+        select(JobPost).where(JobPost.id == report_data.job_post_id)
     )
     job = job_query.scalars().first()
 
