@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>{{ job.title }}</h2>
+<p><strong>Company:</strong> {{ job.company }}</p>
+<p><strong>Location:</strong> {{ job.location }}</p>
+<p><strong>Description:</strong></p>
+<p>{{ job.description }}</p>
+
+<a href="/" class="btn btn-secondary mt-3">← Back to jobs</a>
+{% endblock %}
