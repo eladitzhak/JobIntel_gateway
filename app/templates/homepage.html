@@ -26,17 +26,28 @@
                     {% else %}
                     Posted time NA
                     {% endif %}
+                    <br>
+                    SCRAPED AT {{ job.scraped_time.strftime('%Y-%m-%d %H:%M:%S') }}
+                    <br>
+                    VALIDATED) {{job.validated}}
                 </small>
             </div>
             <div class="card-footer d-flex justify-content-between">
                 <a href="/job/{{ job.id }}" class="btn btn-sm btn-outline-primary">View</a>
                 <div>
-                    <form action="/save/{{ job.id }}" method="post" style="display:inline;">
-                        <button class="btn btn-sm btn-outline-success" type="submit">💾 Save</button>
-                    </form>
-                    <form action="/apply/{{ job.id }}" method="post" style="display:inline;">
-                        <button class="btn btn-sm btn-outline-info" type="submit">✅ Apply</button>
-                    </form>
+                    {% if job.id in saved_job_ids %}
+                    <button class="btn btn-sm btn-success" disabled>✅ Saved</button>
+                    {% else %}
+                    <button class="btn btn-sm btn-outline-success" onclick="saveJob({{ job.id }}, this)">
+                        💾 Save
+                    </button>
+                    {% endif %}
+                    <!-- <button class="btn btn-sm btn-outline-success" onclick="saveJob({{ job.id }}, this)">
+                        💾 Save
+                    </button> -->
+                    <a href="{{ job.link }}" target="_blank" class="btn btn-sm btn-outline-info">
+                        ✅ Apply
+                    </a>
                     <form action="/report/{{ job.id }}" method="post" style="display:inline;">
                         <button class="btn btn-sm btn-outline-danger" type="submit">🚫 Report</button>
                     </form>

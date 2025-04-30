@@ -19,6 +19,34 @@
         {% block content %}{% endblock %}
     </div>
 
+    <script>
+        async function saveJob(jobId, button) {
+            try {
+                const res = await fetch(`/job/${jobId}/save`, {
+                    method: "POST",
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest"
+                    }
+                });
+
+                if (res.ok) {
+                    button.classList.remove("btn-outline-success");
+                    button.classList.add("btn-success");
+                    button.textContent = "✅ Saved";
+                } else if (res.status === 401) {
+                    alert("Please login to save jobs.");
+                    window.location.href = "/login";
+                } else {
+                    alert("Failed to save job.");
+                }
+            } catch (err) {
+                console.error("Save error:", err);
+                alert("Error saving job.");
+            }
+        }
+    </script>
+
+
 </body>
 
 </html>

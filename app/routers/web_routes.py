@@ -10,6 +10,8 @@ from datetime import datetime, timedelta, timezone
 
 import os
 
+from app.models.saved_job import SavedJob
+
 router = APIRouter()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -22,11 +24,20 @@ templates = Jinja2Templates(
 async def homepage(request: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(JobPost)
-        .where(JobPost.posted_time.isnot(None))
-        .order_by(JobPost.posted_time.desc())
-        .limit(10)
+        .limit(100)
     )
     jobs = result.scalars().all()
+
+    user = request.session.get("user")
+    saved_ids = set()
+
+    if user:
+        user_id = user["id"]
+        saved_query = await db.execute(
+            select(SavedJob.id).where(SavedJob.user_id == user["id"])
+        )
+        saved_ids = {row[0] for row in saved_query.all()}
+
     return templates.TemplateResponse(
         "homepage.html",
         {
@@ -34,6 +45,7 @@ async def homepage(request: Request, db: AsyncSession = Depends(get_db)):
             "jobs": jobs,
             "now": datetime.now(timezone.utc),
             "timedelta": timedelta,
+            "saved_job_ids": saved_ids,
         },
     )
 
