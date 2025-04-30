@@ -2,19 +2,48 @@
 
 {% block content %}
 <h2 class="mb-4">Latest Jobs</h2>
-<div class="list-group">
+
+<div class="row row-cols-1 row-cols-md-2 g-4">
     {% for job in jobs %}
-    <a href="/job/{{ job.id }}" class="list-group-item list-group-item-action">
-        <h5 class="mb-1">{{ job.title }}</h5>
-        <p class="mb-1 text-muted">{{ job.company }} – {{ job.location }}</p>
-        <small>
-            {% if job.posted_time %}
-            Posted on {{ job.posted_time.strftime('%Y-%m-%d') }}
-            {% else %}
-            Posted time NA
-            {% endif %}
-        </small>
-    </a>
+    <div class="col">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">
+                    {{ job.title }}
+                    {% if job.posted_time and (job.posted_time >= (now - timedelta(days=8))) %}
+                    <span class="badge bg-success">New</span>
+                    {% endif %}
+                </h5>
+                <h6 class="card-subtitle mb-2 text-muted">
+                    {{ job.company or "Unknown company" }} – {{ job.location or "Unknown location" }}
+                </h6>
+                <p class="card-text">
+                    {{ job.description[:120] if job.description else "No description available..." }}
+                </p>
+                <small class="text-muted">
+                    {% if job.posted_time %}
+                    Posted on {{ job.posted_time.strftime('%Y-%m-%d') }}
+                    {% else %}
+                    Posted time NA
+                    {% endif %}
+                </small>
+            </div>
+            <div class="card-footer d-flex justify-content-between">
+                <a href="/job/{{ job.id }}" class="btn btn-sm btn-outline-primary">View</a>
+                <div>
+                    <form action="/save/{{ job.id }}" method="post" style="display:inline;">
+                        <button class="btn btn-sm btn-outline-success" type="submit">💾 Save</button>
+                    </form>
+                    <form action="/apply/{{ job.id }}" method="post" style="display:inline;">
+                        <button class="btn btn-sm btn-outline-info" type="submit">✅ Apply</button>
+                    </form>
+                    <form action="/report/{{ job.id }}" method="post" style="display:inline;">
+                        <button class="btn btn-sm btn-outline-danger" type="submit">🚫 Report</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
     {% endfor %}
 </div>
 {% endblock %}

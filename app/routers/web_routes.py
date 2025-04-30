@@ -5,6 +5,8 @@ from sqlalchemy import select
 from app.models.job_post import JobPost
 from app.core.database import get_db
 from fastapi.templating import Jinja2Templates
+from datetime import datetime, timedelta, timezone
+
 
 import os
 
@@ -19,11 +21,20 @@ templates = Jinja2Templates(
 @router.get("/", response_class=HTMLResponse)
 async def homepage(request: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(JobPost).order_by(JobPost.posted_time.desc()).limit(10)
+        select(JobPost)
+        .where(JobPost.posted_time.isnot(None))
+        .order_by(JobPost.posted_time.desc())
+        .limit(10)
     )
     jobs = result.scalars().all()
     return templates.TemplateResponse(
-        "homepage.html", {"request": request, "jobs": jobs}
+        "homepage.html",
+        {
+            "request": request,
+            "jobs": jobs,
+            "now": datetime.now(timezone.utc),
+            "timedelta": timedelta,
+        },
     )
 
 
