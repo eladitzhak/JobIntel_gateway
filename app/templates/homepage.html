@@ -29,17 +29,19 @@
                 <div class="card-footer d-flex justify-content-between align-items-center">
                     <a href="/job/{{ job.id }}" class="btn btn-sm btn-outline-primary">View</a>
                     <div>
-                        {% if job.id in saved_job_ids %}
-                        <button class="btn btn-sm btn-success" disabled>✅ Saved</button>
-                        {% else %}
-                        <button class="btn btn-sm btn-outline-success" onclick="saveJob({{ job.id }}, this)">💾
-                            Save</button>
-                        {% endif %}
-                        {% if job.link %}
-                        <a href="{{ job.link }}" target="_blank" class="btn btn-sm btn-outline-info">✅ Apply</a>
-                        {% endif %}
-                        <button class="btn btn-sm btn-outline-danger" onclick="openReportModal({{ job.id }})">🚫
-                            Report</button>
+                    {% if job.id in saved_job_ids %}
+                    <!-- Saved button -->
+                    <button class="btn btn-sm btn-success" onclick="unsaveJob({{ job.id }}, this)">✅Saved</button>
+                    {% else %}
+                    <!-- Save button -->
+                    <button class="btn btn-sm btn-outline-success" onclick="saveJob({{ job.id }}, this)">💾
+                        Save</button>
+                    {% endif %}
+                    {% if job.link %}
+                    <a href="{{ job.link }}" target="_blank" class="btn btn-sm btn-outline-info">✅ Apply</a>
+                    {% endif %}
+                    <button class="btn btn-sm btn-outline-danger" onclick="openReportModal({{ job.id }})">🚫
+                        Report</button>
                     </div>
                 </div>
             </div>
@@ -95,7 +97,7 @@
             new bootstrap.Modal(document.getElementById("reportModal")).show();
         };
 
-        // Handle save job
+        // Save job function
         window.saveJob = async function (jobId, button) {
             try {
                 const res = await fetch(`/job/${jobId}/save`, {
@@ -109,8 +111,7 @@
                     button.classList.remove("btn-outline-success");
                     button.classList.add("btn-success");
                     button.textContent = "✅ Saved";
-                    button.disabled = true;
-                    showToast("Job saved successfully.");
+                    button.setAttribute("onclick", `unsaveJob(${jobId}, this)`);
                 } else if (res.status === 401) {
                     window.location.href = "/login";
                 } else {
@@ -118,6 +119,31 @@
                 }
             } catch (err) {
                 showToast("Error saving job.");
+            }
+        };
+
+        // Unsave job function
+        window.unsaveJob = async function (jobId, button) {
+            try {
+                const res = await fetch(`/job/${jobId}/save`, {
+                    method: "DELETE",
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest"
+                    }
+                });
+
+                if (res.ok) {
+                    button.classList.remove("btn-success");
+                    button.classList.add("btn-outline-success");
+                    button.textContent = "💾 Save";
+                    button.setAttribute("onclick", `saveJob(${jobId}, this)`);
+                } else if (res.status === 401) {
+                    window.location.href = "/login";
+                } else {
+                    showToast("Failed to unsave job.");
+                }
+            } catch (err) {
+                showToast("Error unsaving job.");
             }
         };
 
