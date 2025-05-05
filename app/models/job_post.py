@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ARRAY, Text
 from sqlalchemy.sql import func
 from app.core.database import Base
+from sqlalchemy.orm import relationship
 
 
 class JobPost(Base):
@@ -35,3 +36,7 @@ class JobPost(Base):
     validation_notes = Column(String, nullable=True)
     fields_updated = Column(ARRAY(String), default=[])
     is_user_reported = Column(Boolean, default=False)
+
+    reports = relationship(
+        "ReportedJob", back_populates="job_post", cascade="all, delete"
+    )

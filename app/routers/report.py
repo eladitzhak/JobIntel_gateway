@@ -43,9 +43,9 @@ async def report_job(
     # Save the report
     report = ReportedJob(
         user_id=user_id,
-        job_id=report_data.job_id,
+        job_post_id=report_data.job_post_id,
         reason=report_data.reason,
-        free_text=report_data.free_text,  # Use sanitized free_text
+        # free_text=report_data.free_text,  # Use sanitized free_text
     )
 
     db.add(report)
