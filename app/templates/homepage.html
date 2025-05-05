@@ -1,5 +1,19 @@
 {% extends "base.html" %}
 
+{% block head %}
+<style>
+    details[open] summary::after {
+        content: " ▲";
+    }
+
+    summary::after {
+        content: " ▼";
+    }
+</style>
+{% endblock %}
+
+
+
 {% block content %}
 <div class="container mt-4">
     <h2 class="mb-4">Latest Jobs</h2>
@@ -16,7 +30,20 @@
                         {{ job.company }} – {{ job.location or "Unknown location" }}
                     </h6>
                     <p class="card-text">
-                        {{ job.snippet | safe }}
+                    <details>
+                        <summary class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-info-circle-fill"></i> More Info
+                        </summary>
+                        <div class="mt-2">
+                            <p><b>Description:</b> {{ job.description or 'N/A' }}</p>
+                            <p><b>Requirements:</b> {{ job.requirements or 'N/A' }}</p>
+                            <p><b>Responsibilities:</b> {{ job.responsibilities or 'N/A' }}</p>
+                            <a href="#" onclick="this.closest('details').removeAttribute('open'); return false;">🔼 Less
+                                Info</a>
+                        </div>
+                    </details>
+
+
                     </p>
                     <small class="text-muted">
                         {% if job.posted_time %}
@@ -27,21 +54,35 @@
                     </small>
                 </div>
                 <div class="card-footer d-flex justify-content-between align-items-center">
-                    <a href="/job/{{ job.id }}" class="btn btn-sm btn-outline-primary">View</a>
                     <div>
-                    {% if job.id in saved_job_ids %}
-                    <!-- Saved button -->
-                    <button class="btn btn-sm btn-success" onclick="unsaveJob({{ job.id }}, this)">✅Saved</button>
-                    {% else %}
-                    <!-- Save button -->
-                    <button class="btn btn-sm btn-outline-success" onclick="saveJob({{ job.id }}, this)">💾
-                        Save</button>
-                    {% endif %}
-                    {% if job.link %}
-                    <a href="{{ job.link }}" target="_blank" class="btn btn-sm btn-outline-info">✅ Apply</a>
-                    {% endif %}
-                    <button class="btn btn-sm btn-outline-danger" onclick="openReportModal({{ job.id }})">🚫
-                        Report</button>
+                        {% if job.id in saved_job_ids %}
+                        <!-- Saved button -->
+                        <!-- <button class="btn btn-sm btn-success" onclick="unsaveJob({{ job.id }}, this)"> <i
+                                class="bi bi-bookmark-check"></i>✅Saved</button> -->
+                        <button class="btn btn-sm btn-success" onclick="unsaveJob({{ job.id }}, this)" title="Unsave">
+                            <i class="bi bi-bookmark-check-fill"></i>
+                        </button>
+                        {% else %}
+                        <!-- Save button -->
+                        <!-- <button class="btn btn-sm btn-outline-success" onclick="saveJob({{ job.id }}, this)">💾
+                            Save</button> -->
+                        <button class="btn btn-sm btn-outline-success" onclick="saveJob({{ job.id }}, this)"
+                            title="Save">
+                            <i class="bi bi-bookmark-plus"></i>
+                        </button>
+                        {% endif %}
+                        {% if job.link %}
+                        <!-- <a href="{{ job.link }}" target="_blank" class="btn btn-sm btn-outline-info">✅ Apply</a> -->
+                        <a href="{{ job.link }}" target="_blank" class="btn btn-sm btn-outline-info" title="Apply">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                        </a>
+                        {% endif %}
+                        <!-- <button class="btn btn-sm btn-outline-danger" onclick="openReportModal({{ job.id }})">🚫
+                            Report</button> -->
+                        <button class="btn btn-sm btn-outline-danger" onclick="openReportModal({{ job.id }})"
+                            title="Report">
+                            <i class="bi bi-flag-fill"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -110,7 +151,7 @@
                 if (res.ok) {
                     button.classList.remove("btn-outline-success");
                     button.classList.add("btn-success");
-                    button.textContent = "✅ Saved";
+                    button.textContent = "Saved";
                     button.setAttribute("onclick", `unsaveJob(${jobId}, this)`);
                 } else if (res.status === 401) {
                     window.location.href = "/login";
@@ -193,6 +234,23 @@
                 }
             });
         }
+    });
+</script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // Collapse all other details when one is opened
+        document.querySelectorAll("details").forEach((detailEl) => {
+            detailEl.addEventListener("toggle", () => {
+                if (detailEl.open) {
+                    document.querySelectorAll("details").forEach((otherEl) => {
+                        if (otherEl !== detailEl) {
+                            otherEl.removeAttribute("open");
+                        }
+                    });
+                }
+            });
+        });
     });
 </script>
 {% endblock %}
