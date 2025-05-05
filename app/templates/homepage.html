@@ -6,14 +6,14 @@
 
     <div class="row row-cols-1 row-cols-md-2 g-4">
         {% for job in jobs %}
-        <div class="col">
+        <div class="col" id="job-card-{{ job.id }}">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
                     <h5 class="card-title">
                         {{ job.title }} @ {{ job.company }}
                     </h5>
                     <h6 class="card-subtitle mb-2 text-muted">
-                        {{ job.location or 'Unknown location' }}
+                        {{ job.company }} – {{ job.location or "Unknown location" }}
                     </h6>
                     <p class="card-text">
                         {{ job.snippet | safe }}
@@ -32,8 +32,8 @@
                         {% if job.id in saved_job_ids %}
                         <button class="btn btn-sm btn-success" disabled>✅ Saved</button>
                         {% else %}
-                        <button class="btn btn-sm btn-outline-success"
-                            onclick="saveJob({{ job.id }}, this)">Save</button>
+                        <button class="btn btn-sm btn-outline-success" onclick="saveJob({{ job.id }}, this)">💾
+                            Save</button>
                         {% endif %}
                         {% if job.link %}
                         <a href="{{ job.link }}" target="_blank" class="btn btn-sm btn-outline-info">✅ Apply</a>
@@ -148,7 +148,16 @@
                     });
 
                     if (res.ok) {
+                        // Hide the modal
                         bootstrap.Modal.getInstance(document.getElementById("reportModal")).hide();
+
+                        // Remove the job card from the DOM
+                        const jobCard = document.getElementById(`job-card-${jobId}`);
+                        if (jobCard) {
+                            jobCard.remove();
+                        }
+
+                        // Show success toast
                         showToast("Job reported successfully.");
                     } else {
                         showToast("Failed to report job.");
