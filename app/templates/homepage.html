@@ -30,6 +30,8 @@
                         {{ job.company }} – {{ job.location or "Unknown location" }}
                     </h6>
                     <p class="card-text">
+                        {{ job.snippet or job.description[:180] ~ '...' }}
+
                     <details>
                         <summary class="btn btn-outline-secondary btn-sm">
                             <i class="bi bi-info-circle-fill"></i> More Info
@@ -53,8 +55,9 @@
                         VALIDATED: {{ job.validated }}
                     </small>
                 </div>
-                <div class="card-footer d-flex justify-content-between align-items-center">
+                <div class="card-footer">
                     <div>
+                        <div class="d-flex flex-nowrap gap-2 overflow-auto"></div>
                         {% if job.id in saved_job_ids %}
                         <!-- Saved button -->
                         <!-- <button class="btn btn-sm btn-success" onclick="unsaveJob({{ job.id }}, this)"> <i
