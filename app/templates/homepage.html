@@ -15,9 +15,23 @@
 
 
 {% block content %}
+
 <div class="container mt-4">
+
     <h2 class="mb-4">Latest Jobs</h2>
-    <form method="get" action="/" class="mb-3 d-flex align-items-center gap-2">
+
+    <!-- {% if user and user.subscribed_keywords %}
+    <div class="mb-3">
+        <label class="form-label">🔍 Your Subscribed Keywords:</label><br>
+        {% for kw in user.subscribed_keywords %}
+        <a href="/?keyword={{ kw }}" class="badge bg-primary text-light me-1" style="text-decoration: none;">
+            {{ kw }}
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %} -->
+
+    <!-- <form method="get" action="/" class="mb-3 d-flex align-items-center gap-2">
         {% if request.query_params.get('keyword') %}
         <div class="mb-2">
             <span class="badge bg-light text-dark">
@@ -31,8 +45,45 @@
         <input type="text" class="form-control" name="keyword" placeholder="Filter by keyword"
             value="{{ request.query_params.get('keyword', '') }}">
         <button type="submit" class="btn btn-primary">Search</button>
+    </form> -->
+    <form method="get" class="mb-3 d-flex align-items-center gap-2 flex-wrap">
+        <input type="text" class="form-control" name="keyword" placeholder="Filter by keyword"
+            value="{{ request.query_params.get('keyword', '') }}">
+        <button type="submit" class="btn btn-primary">Search</button>
+
+        <!-- {% if user and user.subscribed_keywords %}
+        <div class="d-flex flex-wrap gap-1 mt-2">
+            {% for kw in user.subscribed_keywords %}
+            <button type="submit" name="keyword" value="{{ kw }}" class="btn btn-sm btn-outline-secondary">
+                {{ kw }}
+            </button>
+            {% endfor %}
+        </div>
+        {% endif %} -->
     </form>
 
+    <!-- Subscribed Keywords as Quick Filters -->
+    {% if user and user.subscribed_keywords %}
+    <div class="mb-3">
+        <small class="text-muted">Quick Filters from subscribed Keywords:</small><br>
+        {% for kw in user.subscribed_keywords[:5] %}
+        <a href="/?keyword={{ kw }}" class="badge bg-secondary text-light me-1">
+            {{ kw }}
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- {% if user.subscribed_keywords %}
+    <div class="mb-3">
+        <strong>My Subscribed Keywords:</strong><br>
+        {% for kw in user.subscribed_keywords %}
+        <a href="/?keyword={{ kw }}" class="badge bg-primary text-decoration-none me-1">
+            {{ kw }}
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %} -->
     <div class="row row-cols-1 row-cols-md-2 g-4">
         {% for job in jobs %}
         <div class="col" id="job-card-{{ job.id }}">

@@ -13,6 +13,7 @@ from app.models.reported_job import ReportedJob  # or your actual import path
 import os
 
 from app.models.saved_job import SavedJob
+from app.models.user import User
 
 router = APIRouter()
 
@@ -59,6 +60,11 @@ async def homepage(
     """
     user = request.session.get("user")
     user_id = user["id"] if user else None
+    session_user = request.session.get("user")
+
+    if session_user:
+        user_id = session_user["id"]
+        user = await db.get(User, user_id)
 
     # Build subquery of jobs this user reported
     reported_ids = set()
@@ -105,7 +111,7 @@ async def homepage(
         {
             "request": request,
             "jobs": jobs,
-            "user": user_id,
+            "user": user,
             "now": datetime.now(timezone.utc),
             "timedelta": timedelta,
             "saved_job_ids": saved_ids,
