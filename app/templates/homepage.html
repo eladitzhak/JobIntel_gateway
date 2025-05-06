@@ -46,21 +46,27 @@
             value="{{ request.query_params.get('keyword', '') }}">
         <button type="submit" class="btn btn-primary">Search</button>
     </form> -->
-    <form method="get" class="mb-3 d-flex align-items-center gap-2 flex-wrap  position-relative">
-        <input type=" text" class="form-control" name="keyword" placeholder="Filter by keyword"
-            value="{{ request.query_params.get('keyword', '') }}">
-        <button type="submit" class="btn btn-primary">Search</button>
-
-        <!-- {% if user and user.subscribed_keywords %}
-        <div class="d-flex flex-wrap gap-1 mt-2">
-            {% for kw in user.subscribed_keywords %}
-            <button type="submit" name="keyword" value="{{ kw }}" class="btn btn-sm btn-outline-secondary">
-                {{ kw }}
-            </button>
+    <form method="get" class="mb-3">
+        <label for="keywordSelect">Filter by keywords:</label>
+        <select id="keywordSelect" name="keyword" multiple="multiple" class="form-control">
+            {% for kw in all_keywords %}
+            <option value="{{ kw }}">{{ kw }}</option>
             {% endfor %}
-        </div>
-        {% endif %} -->
+        </select>
+        <button type="submit" class="btn btn-primary mt-2">Search</button>
     </form>
+
+    <!-- <form method="get" class="mb-3">
+        <label for="keywords">Filter by keywords:</label>
+        <select class="form-select" name="keywords" id="keywords" multiple>
+            {% for kw in all_keywords %}
+            <option value="{{ kw }}" {% if kw in request.query_params.getlist('keywords') %}selected{% endif %}>{{ kw }}
+            </option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary mt-2">Search</button>
+    </form> -->
+
     <ul id="keywordSuggestions" class="list-group position-absolute" style="z-index: 1000;"></ul>
 
     <!-- Subscribed Keywords as Quick Filters -->
@@ -72,6 +78,21 @@
             {{ kw }}
         </a>
         {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if user and not user.subscribed_keywords %}
+    <div class="alert alert-info">
+        <strong>New here?</strong> Subscribe to get personalized job recommendations!
+        <form method="post" action="/subscribe-keywords">
+            {% for kw in top_keywords[:10] %}
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" name="keywords" value="{{ kw }}" id="kw-{{ kw }}">
+                <label class="form-check-label" for="kw-{{ kw }}">{{ kw }}</label>
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-sm btn-primary mt-2">Subscribe</button>
+        </form>
     </div>
     {% endif %}
 
@@ -324,7 +345,7 @@
     });
 </script>
 
-<script>
+<!-- <script>
     document.addEventListener("DOMContentLoaded", async () => {
         const input = document.querySelector('input[name="keyword"]');
         const suggestionBox = document.getElementById("keywordSuggestions");
@@ -362,6 +383,67 @@
             setTimeout(() => suggestionBox.innerHTML = "", 200); // allow click
         });
     });
+</script> -->
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        const selectEl = document.getElementById("keywords");
+        const suggestionBox = document.getElementById("keywordSuggestions");
+
+        let keywords = [];
+
+        try {
+            const res = await fetch("/keywords");
+            if (res.ok) keywords = await res.json();
+        } catch (e) {
+            console.error("Failed to fetch keywords:", e);
+        }
+
+        if (!selectEl) return;
+
+        selectEl.addEventListener("input", () => {
+            const query = selectEl.value.toLowerCase();
+            suggestionBox.innerHTML = "";
+
+            if (!query) return;
+
+            const filtered = keywords.filter(k => k.toLowerCase().includes(query));
+            filtered.slice(0, 5).forEach(kw => {
+                const li = document.createElement("li");
+                li.className = "list-group-item list-group-item-action";
+                li.textContent = kw;
+                li.addEventListener("click", () => {
+                    const option = [...selectEl.options].find(opt => opt.value === kw);
+                    if (option) option.selected = true;
+                    suggestionBox.innerHTML = "";
+                });
+                suggestionBox.appendChild(li);
+            });
+        });
+
+        selectEl.addEventListener("blur", () => {
+            setTimeout(() => (suggestionBox.innerHTML = ""), 200);
+        });
+    });
+
 </script>
+
+<script>
+    $(document).ready(function () {
+        $('#keywordSelect').select2({
+            placeholder: "Type to filter...",
+            width: '100%'
+        });
+        $('#keywordSelect').select2({
+            placeholder: "Select keywords...",
+            width: '100%',
+            closeOnSelect: false,  // Stay open to allow multi-select
+            allowClear: true,
+            tags: true  // Allow user to type new entries too
+        });
+    });
+</script>
+
 
 {% endblock %}

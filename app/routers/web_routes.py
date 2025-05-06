@@ -1,13 +1,14 @@
-from typing import Optional
+from typing import List, Optional
 from fastapi import APIRouter, Request, Depends, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from app.models.job_post import JobPost
 from app.core.database import get_db
 from fastapi.templating import Jinja2Templates
 from datetime import datetime, timedelta, timezone
 from app.models.reported_job import ReportedJob  # or your actual import path
+from fastapi import Form
 
 
 import os
@@ -26,7 +27,8 @@ templates = Jinja2Templates(
 @router.get("/", response_class=HTMLResponse)
 async def homepage(
     request: Request,
-    keyword: Optional[str] = Query(None),
+    # keyword: Optional[str] = Query(None),
+    # keywords: List[str] = Query(default=[]),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -88,15 +90,27 @@ async def homepage(
     #     .order_by(JobPost.scraped_at.desc())
     #     .limit(5)
     # )
+    keywords = request.query_params.getlist("keyword")
 
-    if keyword:
-        query = query.where(JobPost.keywords.any(keyword))
+    if keywords:
+        query = query.where(or_(*(JobPost.keywords.any(kw) for kw in keywords)))
+    # if keyword:
+    #     query = query.where(JobPost.keywords.any(keyword))
 
     query = query.order_by(JobPost.scraped_at.desc())  # Most recent first
 
     result = await db.execute(query)
 
     jobs = result.scalars().all()
+
+    # Before return statement
+    all_keywords_query = await db.execute(select(JobPost.keywords))
+    all_keywords = set()
+    for row in all_keywords_query.scalars():
+        if row:
+            all_keywords.update(row)
+
+    top_keywords = list(sorted(all_keywords))[:10]  # Just sort alphabetically for now
 
     # Fetch saved job IDs for display
     saved_ids = set()
@@ -115,7 +129,9 @@ async def homepage(
             "now": datetime.now(timezone.utc),
             "timedelta": timedelta,
             "saved_job_ids": saved_ids,
-            "keyword": keyword,
+            # "keyword": keyword,
+            "top_keywords": top_keywords,
+            "all_keywords": sorted(all_keywords),  # ← ADD THI
         },
     )
 
@@ -156,3 +172,22 @@ async def job_detail(request: Request, job_id: int, db: AsyncSession = Depends(g
     return templates.TemplateResponse(
         "job_detail.html", {"request": request, "job": job}
     )
+
+
+@router.post("/subscribe-keywords")
+async def subscribe_keywords(
+    request: Request,
+    keywords: List[str] = Form(...),
+    db: AsyncSession = Depends(get_db),
+):
+    session_user = request.session.get("user")
+    if not session_user:
+        return RedirectResponse("/", status_code=303)
+
+    user_id = session_user["id"]
+    user = await db.get(User, user_id)
+
+    user.subscribed_keywords = list(set(user.subscribed_keywords or []) | set(keywords))
+    await db.commit()
+
+    return RedirectResponse("/", status_code=303)
