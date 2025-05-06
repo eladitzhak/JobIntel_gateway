@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Request, Depends
+from typing import Optional
+from fastapi import APIRouter, Request, Depends, Query
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -22,7 +23,11 @@ templates = Jinja2Templates(
 
 
 @router.get("/", response_class=HTMLResponse)
-async def homepage(request: Request, db: AsyncSession = Depends(get_db)):
+async def homepage(
+    request: Request,
+    keyword: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Renders the homepage with the latest validated job posts.
 
@@ -67,12 +72,24 @@ async def homepage(request: Request, db: AsyncSession = Depends(get_db)):
         reported_ids = {row[0] for row in subq.all()}
 
     # Fetch only jobs NOT reported by this user
-    result = await db.execute(
-        select(JobPost)
-        .where((JobPost.validated == True) & (~JobPost.id.in_(reported_ids)))
-        .order_by(JobPost.scraped_at.desc())
-        .limit(5)
+    # Step 2: Base query — validated jobs, not reported by user
+    query = select(JobPost).where(
+        JobPost.validated == True, ~JobPost.id.in_(reported_ids)
     )
+    # query = await db.execute(
+    #     select(JobPost)
+    #     .where((JobPost.validated == True) & (~JobPost.id.in_(reported_ids)))
+    #     .order_by(JobPost.scraped_at.desc())
+    #     .limit(5)
+    # )
+
+    if keyword:
+        query = query.where(JobPost.keywords.any(keyword))
+
+    query = query.order_by(JobPost.scraped_at.desc())  # Most recent first
+
+    result = await db.execute(query)
+
     jobs = result.scalars().all()
 
     # Fetch saved job IDs for display
@@ -88,9 +105,11 @@ async def homepage(request: Request, db: AsyncSession = Depends(get_db)):
         {
             "request": request,
             "jobs": jobs,
+            "user": user_id,
             "now": datetime.now(timezone.utc),
             "timedelta": timedelta,
             "saved_job_ids": saved_ids,
+            "keyword": keyword,
         },
     )
 
