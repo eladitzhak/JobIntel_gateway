@@ -16,6 +16,8 @@ from app.routers import applied_jobs
 from app.routers import viewed_jobs
 from app.routers import report
 from app.routers.web_routes import router as web_router
+from app.routers.keywords import router as keywords_router
+
 
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -41,6 +43,7 @@ app.include_router(applied_jobs.router)
 app.include_router(viewed_jobs.router)
 app.include_router(web_router)
 app.include_router(report.router)
+app.include_router(keywords_router)
 
 
 @app.get("/")

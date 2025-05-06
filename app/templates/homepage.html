@@ -46,8 +46,8 @@
             value="{{ request.query_params.get('keyword', '') }}">
         <button type="submit" class="btn btn-primary">Search</button>
     </form> -->
-    <form method="get" class="mb-3 d-flex align-items-center gap-2 flex-wrap">
-        <input type="text" class="form-control" name="keyword" placeholder="Filter by keyword"
+    <form method="get" class="mb-3 d-flex align-items-center gap-2 flex-wrap  position-relative">
+        <input type=" text" class="form-control" name="keyword" placeholder="Filter by keyword"
             value="{{ request.query_params.get('keyword', '') }}">
         <button type="submit" class="btn btn-primary">Search</button>
 
@@ -61,6 +61,7 @@
         </div>
         {% endif %} -->
     </form>
+    <ul id="keywordSuggestions" class="list-group position-absolute" style="z-index: 1000;"></ul>
 
     <!-- Subscribed Keywords as Quick Filters -->
     {% if user and user.subscribed_keywords %}
@@ -322,4 +323,45 @@
         });
     });
 </script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        const input = document.querySelector('input[name="keyword"]');
+        const suggestionBox = document.getElementById("keywordSuggestions");
+
+        let keywords = [];
+
+        try {
+            const res = await fetch("/keywords");
+            if (res.ok) keywords = await res.json();
+        } catch (e) {
+            console.error("Failed to fetch keywords:", e);
+        }
+
+        input.addEventListener("input", () => {
+            const query = input.value.toLowerCase();
+            suggestionBox.innerHTML = "";
+
+            if (!query) return;
+
+            const filtered = keywords.filter(k => k.toLowerCase().includes(query));
+            filtered.slice(0, 5).forEach(kw => {
+                const li = document.createElement("li");
+                li.className = "list-group-item list-group-item-action";
+                li.textContent = kw;
+                li.addEventListener("click", () => {
+                    input.value = kw;
+                    suggestionBox.innerHTML = "";
+                });
+                suggestionBox.appendChild(li);
+            });
+        });
+
+        // Hide suggestions on blur
+        input.addEventListener("blur", () => {
+            setTimeout(() => suggestionBox.innerHTML = "", 200); // allow click
+        });
+    });
+</script>
+
 {% endblock %}
