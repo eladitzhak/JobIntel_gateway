@@ -56,6 +56,17 @@
         <button type="submit" class="btn btn-primary mt-2">Search</button>
     </form>
 
+    <!-- Active Keyword Chips -->
+    <div class="mb-3">
+        {% for kw in request.query_params.getlist('keyword') %}
+        <span class="badge rounded-pill bg-primary me-1">
+            {{ kw }}
+            <a href="#" onclick="removeKeyword('{{ kw }}')" class="text-white ms-1"
+                style="text-decoration: none;">&times;</a>
+        </span>
+        {% endfor %}
+    </div>
+
     <!-- <form method="get" class="mb-3">
         <label for="keywords">Filter by keywords:</label>
         <select class="form-select" name="keywords" id="keywords" multiple>
@@ -445,5 +456,25 @@
     });
 </script>
 
+<script>
+    function removeKeyword(kwToRemove) {
+        const url = new URL(window.location.href);
+        const params = url.searchParams;
+        const keywords = params.getAll("keyword");
+
+        // Clear all current keywords
+        params.delete("keyword");
+
+        // Re-add all except the one to remove
+        keywords.forEach(kw => {
+            if (kw !== kwToRemove) {
+                params.append("keyword", kw);
+            }
+        });
+
+        // Redirect with updated params
+        window.location.href = `${url.pathname}?${params.toString()}`;
+    }
+</script>
 
 {% endblock %}
