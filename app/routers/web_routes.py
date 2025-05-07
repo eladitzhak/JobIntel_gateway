@@ -64,9 +64,16 @@ async def homepage(
     user_id = user["id"] if user else None
     session_user = request.session.get("user")
 
+    keywords = request.query_params.getlist("keyword")
+
+    new_keywords = []
+
     if session_user:
         user_id = session_user["id"]
         user = await db.get(User, user_id)
+        if keywords:
+            subscribed_keywords = set(user.subscribed_keywords or [])
+            new_keywords = [kw for kw in keywords if kw not in subscribed_keywords]
 
     # Build subquery of jobs this user reported
     reported_ids = set()
@@ -90,7 +97,6 @@ async def homepage(
     #     .order_by(JobPost.scraped_at.desc())
     #     .limit(5)
     # )
-    keywords = request.query_params.getlist("keyword")
 
     if keywords:
         query = query.where(or_(*(JobPost.keywords.any(kw) for kw in keywords)))
@@ -132,6 +138,7 @@ async def homepage(
             # "keyword": keyword,
             "top_keywords": top_keywords,
             "all_keywords": sorted(all_keywords),  # ← ADD THI
+            "new_keywords": new_keywords,  # 👈
         },
     )
 
