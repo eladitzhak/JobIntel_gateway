@@ -1,8 +1,11 @@
+import httpx
+
 from typing import List, Optional
 from fastapi import APIRouter, Request, Depends, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import or_, select
+from app.core.config import settings
 from app.models.job_post import JobPost
 from app.core.database import get_db
 from fastapi.templating import Jinja2Templates
@@ -15,6 +18,26 @@ import os
 
 from app.models.saved_job import SavedJob
 from app.models.user import User
+from app.schemas.job import JobOut, JobsResponse
+
+# TODO:ADD TO ENV
+SCRAPER_SERVICE_URL = "http://13.60.6.112:8000"  # TODO: Replace this
+
+
+async def was_scraped_recently_check(keywords: list[str]) -> dict[str, bool]:
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{SCRAPER_SERVICE_URL}/was-scraped-recently",
+                params={"keywords": keywords},
+                timeout=10,
+            )
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        print("❌ Scraper check failed:", e)
+        return {}
+
 
 router = APIRouter()
 
@@ -22,6 +45,19 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(
     directory=os.path.join(BASE_DIR, "../templates")
 )  # <- Adjust path if needed
+
+
+async def trigger_scrape(keywords: list[str]) -> None:
+    try:
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                f"{SCRAPER_SERVICE_URL}/scrape",
+                json={"keywords": keywords},
+                headers={"X-API-KEY": settings.SCRAPER_API_KEY},
+                timeout=10,
+            )
+    except Exception as e:
+        print("❌ Failed to trigger scraper:", e)
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -67,11 +103,32 @@ async def homepage(
     keywords = request.query_params.getlist("keyword")
 
     new_keywords = []
-
+    keywords_to_scrape = []
+    # TODO if user already connected why need to pull db again?
     if session_user:
-        user_id = session_user["id"]
         user = await db.get(User, user_id)
         if keywords:
+            scraped_status = await was_scraped_recently_check(keywords)
+            keywords_to_scrape = [
+                kw for kw in keywords if not scraped_status.get(kw, False)
+            ]
+            if keywords_to_scrape:
+                # try:
+                #     async with httpx.AsyncClient() as client:
+                #         respons e = await client.post(
+                #             f"{SCRAPER_SERVICE_URL}/scrape",
+                #             json={"keywords": keywords_to_scrape},
+                #             headers={"x-api-key": settings.SCRAPER_API_KEY},
+                #             timeout=200,
+                #         )
+                #     response.raise_for_status()
+                # except Exception as e:
+                #     print("❌ Failed to trigger scraper:", e)
+                #     # Handle the error as needed, e.g., log it or notify the user
+                await trigger_scrape(keywords_to_scrape)
+                print(f"🔥 Triggered scrape for: {keywords_to_scrape}")
+
+            scraped = [k for k in keywords if scraped_status.get(k, False) is True]
             subscribed_keywords = set(user.subscribed_keywords or [])
             new_keywords = [kw for kw in keywords if kw not in subscribed_keywords]
 
@@ -139,6 +196,8 @@ async def homepage(
             "top_keywords": top_keywords,
             "all_keywords": sorted(all_keywords),  # ← ADD THI
             "new_keywords": new_keywords,  # 👈
+            "keywords": keywords,  # ✅ ensure it's always present
+            "keywords_to_scrape": keywords_to_scrape,  # 👈
         },
     )
 
@@ -198,3 +257,55 @@ async def subscribe_keywords(
     await db.commit()
 
     return RedirectResponse("/", status_code=303)
+
+
+@router.get("/jobs/updates", response_model=JobsResponse)
+async def get_job_updates(
+    keywords: List[str] = Query(...),
+    known_ids: List[int] = Query([]),
+    db: AsyncSession = Depends(get_db),
+):
+    # query = select(JobPost).where(JobPost.validated == True)
+    query = select(JobPost)
+
+    if keywords:
+        query = query.where(or_(*(JobPost.keywords.any(kw) for kw in keywords)))
+    if known_ids:
+        query = query.where(JobPost.id.not_in(known_ids))
+
+    result = await db.execute(query)
+    jobs = result.scalars().all()
+
+    # TODO: ned tp fix pagiantions
+    return JobsResponse(
+        jobs=[JobOut.model_validate(job) for job in jobs],
+        total=len(jobs),
+        page=1,
+        page_size=len(jobs),
+        total_pages=1,
+        has_next=False,
+        has_prev=False,
+    )
+
+
+@router.post("/trigger-scrape-safe")
+async def trigger_scrape_safe_route(
+    request: Request,
+    # keywords: List[str] = Form(...),  # or use JSON
+    payload: dict,
+):
+    try:
+        keywords = payload.get("keywords", [])
+        if not keywords:
+            return {"status": "error", "detail": "No keywords provided"}
+        async with httpx.AsyncClient() as client:
+            res = await client.post(
+                f"{SCRAPER_SERVICE_URL}/scrape-from-user",
+                params={"keywords": keywords},
+                headers={"X-API-KEY": settings.SCRAPER_API_KEY},
+                timeout=15,
+            )
+        return {"status": "triggered", "keywords": keywords}
+    except Exception as e:
+        print("❌ Failed to proxy scrape:", e)
+        return {"status": "error", "detail": str(e)}
