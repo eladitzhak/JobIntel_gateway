@@ -229,7 +229,7 @@
     </div>
 
     {% if keywords and not jobs %}
-    <div class="alert alert-info mt-3">
+    <div class="alert alert-info mt-3" id="noResultsBanner">
         We’re fetching new jobs for: <strong>{{ keywords | join(", ") }}</strong>. Check back soon!
     </div>
     {% endif %}

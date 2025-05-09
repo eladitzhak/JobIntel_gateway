@@ -48,6 +48,8 @@ templates = Jinja2Templates(
 
 
 async def trigger_scrape(keywords: list[str]) -> None:
+    if not keywords:
+        return
     try:
         async with httpx.AsyncClient() as client:
             await client.post(
@@ -58,6 +60,139 @@ async def trigger_scrape(keywords: list[str]) -> None:
             )
     except Exception as e:
         print("❌ Failed to trigger scraper:", e)
+
+
+async def get_current_user(
+    request: Request, db: AsyncSession
+) -> tuple[Optional[User], Optional[int]]:
+    """
+    Extracts the logged-in user from the session and fetches the user object from the database.
+
+    Returns:
+        - user: The User object if authenticated, otherwise None.
+        - user_id: The user's ID if authenticated, otherwise None.
+    """
+    session_user = request.session.get("user")
+    if not session_user:
+        return None, None
+    user_id = session_user["id"]
+    user = await db.get(User, user_id)
+    return user, user_id
+
+
+# TODO: need to move out the scraping
+async def prepare_keywords(
+    keywords: List[str], db: AsyncSession, user: Optional[User]
+) -> tuple[List[str], List[str]]:
+    """
+    Determines which keywords need scraping based on Redis freshness, triggers background scraping,
+    and identifies which keywords are new to the user's subscription.
+
+    Args:
+        keywords: A list of keywords passed by the user.
+        db: Database session.
+        user: The authenticated User object (or None for guest users).
+
+    Returns:
+        - keywords_to_scrape: Keywords that need to be scraped.
+        - new_keywords: Keywords not in the user's subscription list (empty for unauthenticated users).
+    """
+
+    keywords_to_scrape = []
+    new_keywords = []
+
+    if keywords:
+        keywords_scraped_status = await was_scraped_recently_check(keywords)
+        keywords_to_scrape = [
+            kw for kw in keywords if not keywords_scraped_status.get(kw, False)
+        ]
+        await trigger_scrape(keywords_to_scrape)
+        print(f"🔥 Triggered scrape for: {keywords_to_scrape}")
+
+        if user:
+            subscribed_keywords = set(user.subscribed_keywords or [])
+            new_keywords = [kw for kw in keywords if kw not in subscribed_keywords]
+
+    return keywords_to_scrape, new_keywords
+
+
+# TODO: improvement: If the ReportedJob table grows large, this query could become slow. Consider optimizing it with proper indexing on user_id and job_post_id.
+async def get_reported_job_ids_for_user(
+    user_id: Optional[int], db: AsyncSession
+) -> set[int]:
+    """
+    Retrieves the set of job_post_ids that the authenticated user has reported.
+
+    Args:
+        user_id: The ID of the current user (None if unauthenticated).
+        db: Database session.
+
+    Returns:
+        A set of reported job_post_ids (empty if user is not logged in).
+    """
+    if not user_id:
+        return set()
+
+    result = await db.execute(
+        select(ReportedJob.job_post_id).where(ReportedJob.user_id == user_id)
+    )
+
+    return {row[0] for row in result.all()}
+
+
+async def fetch_filtered_jobs(
+    db: AsyncSession, keywords: list[str], reported_ids: set[int]
+) -> list[JobPost]:
+    """
+    Builds and executes the query to fetch validated jobs, excluding reported ones,
+    and filtering by keywords if provided.
+
+    Args:
+        db: Database session.
+        keywords: List of keyword filters (can be empty).
+        reported_ids: Set of job IDs reported by the user to exclude.
+
+    Returns:
+        A list of JobPost objects sorted by most recently scraped.
+    """
+
+    filters = [JobPost.validated == True]
+    if reported_ids:
+        filters.append(~JobPost.id.in_(reported_ids))
+
+    if keywords:
+        filters.append(or_(*(JobPost.keywords.any(kw) for kw in keywords)))
+
+    query = select(JobPost).where(*filters).order_by(JobPost.scraped_at.desc())
+
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+async def get_saved_job_ids_for_user(
+    user_id: Optional[int], visible_job_ids: list[int], db: AsyncSession
+) -> set[int]:
+    """
+    Retrieves the saved job_post_ids for the given user from the current visible jobs.
+
+    Args:
+        user_id: The authenticated user's ID, or None.
+        visible_job_ids: List of JobPost IDs currently shown on the page.
+        db: Database session.
+
+    Returns:
+        A set of saved job_post_ids matching the current visible jobs (empty if not logged in).
+    """
+    if not user_id or not visible_job_ids:
+        return set()
+
+    result = await db.execute(
+        select(SavedJob.job_post_id).where(
+            SavedJob.user_id == user_id,
+            SavedJob.job_post_id.in_(visible_job_ids),
+        )
+    )
+    return {row[0] for row in result.all()}
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -96,75 +231,22 @@ async def homepage(
     - Optionally hide jobs with a high number of reports globally.
 
     """
-    user = request.session.get("user")
-    user_id = user["id"] if user else None
-    session_user = request.session.get("user")
+    # user = request.session.get("user")
+    # user_id = user["id"] if user else None
+
+    user, user_id = await get_current_user(request, db)
 
     keywords = request.query_params.getlist("keyword")
 
-    new_keywords = []
-    keywords_to_scrape = []
-    # TODO if user already connected why need to pull db again?
-    if session_user:
-        user = await db.get(User, user_id)
-        if keywords:
-            scraped_status = await was_scraped_recently_check(keywords)
-            keywords_to_scrape = [
-                kw for kw in keywords if not scraped_status.get(kw, False)
-            ]
-            if keywords_to_scrape:
-                # try:
-                #     async with httpx.AsyncClient() as client:
-                #         respons e = await client.post(
-                #             f"{SCRAPER_SERVICE_URL}/scrape",
-                #             json={"keywords": keywords_to_scrape},
-                #             headers={"x-api-key": settings.SCRAPER_API_KEY},
-                #             timeout=200,
-                #         )
-                #     response.raise_for_status()
-                # except Exception as e:
-                #     print("❌ Failed to trigger scraper:", e)
-                #     # Handle the error as needed, e.g., log it or notify the user
-                await trigger_scrape(keywords_to_scrape)
-                print(f"🔥 Triggered scrape for: {keywords_to_scrape}")
-
-            scraped = [k for k in keywords if scraped_status.get(k, False) is True]
-            subscribed_keywords = set(user.subscribed_keywords or [])
-            new_keywords = [kw for kw in keywords if kw not in subscribed_keywords]
+    keywords_to_scrape, new_keywords_for_user = await prepare_keywords(
+        keywords, db, user
+    )
 
     # Build subquery of jobs this user reported
-    reported_ids = set()
-    if user_id:
-        """
-        #TODO: improvement: If the ReportedJob table grows large, this query could become slow. Consider optimizing it with proper indexing on user_id and job_post_id.
-        """
-        subq = await db.execute(
-            select(ReportedJob.job_post_id).where(ReportedJob.user_id == user_id)
-        )
-        reported_ids = {row[0] for row in subq.all()}
+    user_reported_jobs_ids = await get_reported_job_ids_for_user(user_id, db)
 
     # Fetch only jobs NOT reported by this user
-    # Step 2: Base query — validated jobs, not reported by user
-    query = select(JobPost).where(
-        JobPost.validated == True, ~JobPost.id.in_(reported_ids)
-    )
-    # query = await db.execute(
-    #     select(JobPost)
-    #     .where((JobPost.validated == True) & (~JobPost.id.in_(reported_ids)))
-    #     .order_by(JobPost.scraped_at.desc())
-    #     .limit(5)
-    # )
-
-    if keywords:
-        query = query.where(or_(*(JobPost.keywords.any(kw) for kw in keywords)))
-    # if keyword:
-    #     query = query.where(JobPost.keywords.any(keyword))
-
-    query = query.order_by(JobPost.scraped_at.desc())  # Most recent first
-
-    result = await db.execute(query)
-
-    jobs = result.scalars().all()
+    filtered_jobs = await fetch_filtered_jobs(db, keywords, user_reported_jobs_ids)
 
     # Before return statement
     all_keywords_query = await db.execute(select(JobPost.keywords))
@@ -173,21 +255,18 @@ async def homepage(
         if row:
             all_keywords.update(row)
 
+    # retturn top_keywords to show filter suggestions to the user
     top_keywords = list(sorted(all_keywords))[:10]  # Just sort alphabetically for now
 
     # Fetch saved job IDs for display
-    saved_ids = set()
-    if user_id:
-        saved_query = await db.execute(
-            select(SavedJob.job_post_id).where(SavedJob.user_id == user_id)
-        )
-        saved_ids = {row[0] for row in saved_query.all()}
+    job_ids = [job.id for job in filtered_jobs]
+    saved_ids = await get_saved_job_ids_for_user(user_id, job_ids, db)
 
     return templates.TemplateResponse(
         "homepage.html",
         {
             "request": request,
-            "jobs": jobs,
+            "jobs": filtered_jobs,
             "user": user,
             "now": datetime.now(timezone.utc),
             "timedelta": timedelta,
@@ -195,36 +274,9 @@ async def homepage(
             # "keyword": keyword,
             "top_keywords": top_keywords,
             "all_keywords": sorted(all_keywords),  # ← ADD THI
-            "new_keywords": new_keywords,  # 👈
+            "new_keywords": new_keywords_for_user,  # 👈
             "keywords": keywords,  # ✅ ensure it's always present
             "keywords_to_scrape": keywords_to_scrape,  # 👈
-        },
-    )
-
-    result = await db.execute(
-        select(JobPost).where(JobPost.validated == True)
-        # .order_by(JobPost.posted_time.desc(), JobPost.scraped_at.desc())
-        # .limit(5)
-    )
-    jobs = result.scalars().all()
-
-    saved_ids = set()
-
-    if user:
-        user_id = user["id"]
-        saved_query = await db.execute(
-            select(SavedJob.id).where(SavedJob.user_id == user["id"])
-        )
-        saved_ids = {row[0] for row in saved_query.all()}
-
-    return templates.TemplateResponse(
-        "homepage.html",
-        {
-            "request": request,
-            "jobs": jobs,
-            "now": datetime.now(timezone.utc),
-            "timedelta": timedelta,
-            "saved_job_ids": saved_ids,
         },
     )
 
@@ -268,10 +320,15 @@ async def get_job_updates(
     # query = select(JobPost).where(JobPost.validated == True)
     query = select(JobPost)
 
-    if keywords:
-        query = query.where(or_(*(JobPost.keywords.any(kw) for kw in keywords)))
-    if known_ids:
-        query = query.where(JobPost.id.not_in(known_ids))
+    # query jobs containing any of the keywords if provided
+    query = (
+        query.where(or_(*(JobPost.keywords.any(kw) for kw in keywords)))
+        if keywords
+        else query
+    )
+
+    # exclude jobs that are already known to the user
+    query = query.where(JobPost.id.not_in(known_ids)) if known_ids else query
 
     result = await db.execute(query)
     jobs = result.scalars().all()
