@@ -24,7 +24,7 @@ oauth.register(
 async def login(request: Request):
     print("Login route called")
     if request.session.get("user"):
-        return RedirectResponse(url="/me")
+        return RedirectResponse(url="/")
     redirect_uri = request.url_for("auth_callback")
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
@@ -59,7 +59,7 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
         # "picture": user_info.get("picture")
     }
 
-    return RedirectResponse(url="/me")
+    return RedirectResponse(url="/")
 
 
 @router.get("/logout")
