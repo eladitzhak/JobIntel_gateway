@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ARRAY
 from sqlalchemy.sql import func
+
 from app.core.database import Base
 
 
@@ -16,3 +17,4 @@ class User(Base):
     last_login = Column(DateTime(timezone=True), nullable=True)
     name = Column(String, nullable=True)
     subscribed_keywords = Column(ARRAY(String), default=[])
+    last_seen = Column(DateTime(timezone=True))

@@ -17,6 +17,7 @@ from app.routers import viewed_jobs
 from app.routers import report
 from app.routers.web_routes import router as web_router
 from app.routers.keywords import router as keywords_router
+from app.middlewares import LoginTrackingMiddleware
 
 
 from fastapi.templating import Jinja2Templates
@@ -32,7 +33,10 @@ app.mount(
     "/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static"
 )
 
+app.add_middleware(LoginTrackingMiddleware)
+
 app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
+
 
 app.include_router(auth.router)
 app.include_router(jobs.router)

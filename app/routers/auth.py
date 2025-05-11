@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User  # Make sure lowercase if needed
 from sqlalchemy import select
+from datetime import datetime, timezone
 
 
 router = APIRouter()
@@ -47,8 +48,14 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
             google_id=user_info.get("sub"),
             picture=user_info.get("picture"),
             name=user_info.get("name"),  # ✅ Add this
+            last_login=datetime.now(timezone.utc),  # ✅ here
         )
         db.add(user)
+        await db.commit()
+        await db.refresh(user)
+    else:
+        print("User already exists, updating last login")
+        user.last_login = datetime.now(timezone.utc)
         await db.commit()
         await db.refresh(user)
 
