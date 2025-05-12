@@ -23,7 +23,7 @@ from app.schemas.job import JobOut, JobsResponse
 
 # TODO:ADD TO ENV
 SCRAPER_SERVICE_URL = (
-    "http://13.60.6.112:8000"  # TODO: Replace this with jobscraper URL
+    "http://51.20.141.241:8000"  # TODO: Replace this with jobscraper URL
 )
 
 RECENT_MINUTES = 120
