@@ -89,21 +89,9 @@ async def get_current_user(
 async def prepare_keywords(
     keywords: List[str], db: AsyncSession, user: Optional[User]
 ) -> tuple[List[str], List[str]]:
-    """
-    Checks which keywords have been recently scraped using Redis (via scraper API),
-    If Redis or the scraper service is unreachable, it assumes all keywords need scraping.
-    triggers background scraping,
-    and identifies which keywords are new to the user's subscription.
-
-    Args:
-        keywords: A list of keywords passed by the user.
-        db: Database session.
-        user: The authenticated User object (or None for guest users).
-
-    Returns:
-        - keywords_to_scrape: Keywords that need to be scraped.
-        - new_keywords: Keywords not in the user's subscription list (empty for unauthenticated users).
-    """
+    if not keywords:
+        # Early return if no keywords are provided
+        return [], []
 
     keywords_to_scrape = []
     new_keywords = []
@@ -124,7 +112,6 @@ async def prepare_keywords(
     await trigger_scrape(keywords_to_scrape)
 
     # Step 3: Compare with user's subscriptions
-    new_keywords = []
     if user:
         subscribed_keywords = set(user.subscribed_keywords or [])
         new_keywords = [kw for kw in keywords if kw not in subscribed_keywords]
