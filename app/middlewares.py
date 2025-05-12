@@ -1,11 +1,12 @@
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
+from starlette.responses import Response
 from datetime import datetime
 import pytz
 
 from app.core.database import get_db
 from app.models.user import User
-
+from core.logger import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -30,3 +31,19 @@ class LoginTrackingMiddleware(BaseHTTPMiddleware):
         else:
             print("⚠️ Session not available on this request.")
         return await call_next(request)
+
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        logger.info(f"➡️ {request.method} {request.url.path}")
+        try:
+            response: Response = await call_next(request)
+            logger.info(
+                f"✅ {request.method} {request.url.path} - {response.status_code}"
+            )
+            return response
+        except Exception as e:
+            logger.error(
+                f"❌ Error during request: {request.method} {request.url.path} - {e}"
+            )
+            raise

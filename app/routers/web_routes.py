@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from app.models.reported_job import ReportedJob  # or your actual import path
 from fastapi import Form
 from datetime import datetime, timedelta, timezone
-
+from core.logger import logger
 
 import os
 
@@ -30,6 +30,7 @@ RECENT_MINUTES = 120
 
 
 async def was_scraped_recently_check(keywords: list[str]) -> dict[str, bool]:
+    logger.info("Checking if keywords were scraped recently")
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -38,9 +39,13 @@ async def was_scraped_recently_check(keywords: list[str]) -> dict[str, bool]:
                 timeout=5,
             )
         response.raise_for_status()
+        logger.info("Scraper check response:", response.json())
+        if response.status_code != 200:
+            logger.error("Scraper check failed:", response.status_code, response.text)
         return response.json()
     except Exception as e:
         print("❌ Scraper check failed:", e, e.request.url, str(e))
+        logger.error("Scraper check failed:", e, e.request.url, str(e))
         return {}
 
 
@@ -53,6 +58,7 @@ templates = Jinja2Templates(
 
 
 async def trigger_scrape(keywords: list[str]) -> None:
+    logger.info("Triggering scraper with keywords:", keywords)
     if not keywords:
         return
     try:
@@ -98,6 +104,7 @@ async def prepare_keywords(
 
     # Step 1: Redis freshness check (via microservice)
     keywords_scraped_status = await was_scraped_recently_check(keywords)
+    logger.info("Keywords scraped status:", keywords_scraped_status)
     if not keywords_scraped_status:
         print(
             "⚠️ Redis check failed or returned no data — so assuming all keywords are stale"
@@ -252,12 +259,14 @@ async def homepage(
     # user_id = user["id"] if user else None
     # TODO if user already connected cna skip this?
     user, user_id = await get_current_user(request, db)
+    logger.info("User:", user, "User ID:", user_id)
 
     keywords = request.query_params.getlist("keyword")
-
+    logger.info("Keywords from query params:", keywords)
     keywords_to_scrape, new_keywords_for_user = await prepare_keywords(
         keywords, db, user
     )
+    logger.info("Keywords to scrape:", keywords_to_scrape)
 
     # Build subquery of jobs this user reported
     user_reported_jobs_ids = await get_reported_job_ids_for_user(user_id, db)
