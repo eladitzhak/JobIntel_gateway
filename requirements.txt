@@ -4,3 +4,5 @@ bleach
 jinja2 
 python-multipart
 pytz
+fastapi
+pydantic_settings
