@@ -48,6 +48,7 @@
     </form> -->
 
 
+
     <form method="get" class="mb-3">
         <label for="keywordSelect">Filter by keywords:</label>
         <select id="keywordSelect" name="keyword" multiple="multiple" class="form-control">
@@ -418,12 +419,16 @@
 
 
         // startPollingForJobs();
-        alert("checking if need to scrpae , if epty not needed  " + window.keywordsToScrape.join(", "));
-        if (window.keywordsToScrape.length > 0) {
+        console.log("checking if need to scrpae , if epty not needed  " + window.keywordsToScrape.join(", "));
+        if (window.keywords.length == 0) {
+            console.log("no keywords to scrape, not starting polling");
+        }
+        else if (window.keywordsToScrape.length > 0) {
+            console.log("starting polling for fresh jobs for: " + window.keywordsToScrape.join(", "));
             showToast("🔄 getting fresh job in the background for: " + window.keywordsToScrape.join(", "));
             startPollingForJobs();
         } else {
-            showToast("✅ All selected keywords were recently scraped.");
+            showToast("✅ All selected keywords are fresh jobs.");
         }
 
 
@@ -531,13 +536,11 @@
     function startPollingForJobs() {
 
         // if (!window.keywords || window.keywords.length === 0) return;
-        alert(window.keywordsToScrape);
         const knownIds = Array.from(document.querySelectorAll("[id^='job-card-']"))
             .map(el => parseInt(el.id.replace("job-card-", "")))
             .filter(id => !isNaN(id));
 
         console.log("🔁 Polling started for:", window.keywordsToScrape);
-        alert(window.keywordsToScrape);
         showToast("🔄 polling started... checking in 8 seconds");
 
         setTimeout(async () => {
@@ -710,6 +713,8 @@
     window.keywords = {{ keywords | default ([]) | tojson | safe }};
     window.keywordsToScrape = {{ keywords_to_scrape | default ([]) | tojson | safe }};
 </script>
+
+
 
 
 <!-- Subscribe button new keywords -->
