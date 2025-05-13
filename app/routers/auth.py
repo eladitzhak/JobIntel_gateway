@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.models.user import User  # Make sure lowercase if needed
 from sqlalchemy import select
 from datetime import datetime, timezone
+from core.logger import logger
 
 
 router = APIRouter()

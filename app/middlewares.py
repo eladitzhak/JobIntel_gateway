@@ -27,9 +27,9 @@ class LoginTrackingMiddleware(BaseHTTPMiddleware):
                         db_user.last_seen = current_time_israel
                         await db.commit()
                 except Exception as e:
-                    print("⚠️ Login tracking middleware error:", e)
+                    logger.info("⚠️ Login tracking middleware error:", e)
         else:
-            print("⚠️ Session not available on this request.")
+            logger.error("⚠️ Session not available on this request.")
         return await call_next(request)
 
 
