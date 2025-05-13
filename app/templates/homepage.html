@@ -409,10 +409,12 @@
                         location.reload(); // ✅ Refresh UI if needed
                     } else {
                         const error = await res.json();
-                        alert("Failed to subscribe: " + (error.detail || res.statusText));
+                        showToast("Failed to subscribe: ");
+                        console.log("Failed to subscribe: " + (error.detail || res.statusText));
                     }
                 } catch (err) {
-                    alert("Error subscribing to keywords.");
+                    showToast("Error subscribing to keywords.");
+                    console.error("Error subscribing to keywords:", err);
                 }
             });
         }
@@ -556,7 +558,8 @@
                 console.log("🔄 New jobs found:", newJobs);
 
                 if (newJobs && newJobs.length > 0) {
-                    alert("New jobs found: " + newJobs.map(job => job.title).join(", "));
+                    // alert("New jobs found: " + newJobs.map(job => job.title).join(", "));
+                    console.log("New jobs:", newJobs);
                     const container = document.getElementById("jobsContainer");
                     newJobs.forEach(job => {
                         const card = renderJobCard(job);
