@@ -1,0 +1,759 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    details[open] summary::after {
+        content: " ▲";
+    }
+
+    summary::after {
+        content: " ▼";
+    }
+</style>
+{% endblock %}
+
+
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <h2 class="mb-4">Latest Jobs</h2>
+
+    <!-- {% if user and user.subscribed_keywords %}
+    <div class="mb-3">
+        <label class="form-label">🔍 Your Subscribed Keywords:</label><br>
+        {% for kw in user.subscribed_keywords %}
+        <a href="/?keyword={{ kw }}" class="badge bg-primary text-light me-1" style="text-decoration: none;">
+            {{ kw }}
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %} -->
+
+    <!-- <form method="get" action="/" class="mb-3 d-flex align-items-center gap-2">
+        {% if request.query_params.get('keyword') %}
+        <div class="mb-2">
+            <span class="badge bg-light text-dark">
+
+                🔍 Filter: "{{ request.query_params.get('keyword') }}"
+
+                <a href="/" class="text-decoration-none ms-2"> <i class="bi bi-x-circle"></i>Clear</a>
+            </span>
+        </div>
+        {% endif %}
+        <input type="text" class="form-control" name="keyword" placeholder="Filter by keyword"
+            value="{{ request.query_params.get('keyword', '') }}">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </form> -->
+
+
+
+    <form method="get" class="mb-3">
+        <label for="keywordSelect">Filter by keywords:</label>
+        <select id="keywordSelect" name="keyword" multiple="multiple" class="form-control">
+            {% for kw in all_keywords %}
+            <option value="{{ kw }}" {% if kw in request.query_params.getlist('keyword') %}selected{% endif %}>{{ kw }}
+            </option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary mt-2">Search</button>
+    </form>
+
+
+    <!-- Suggest subscribe new keyword -->
+    {% if new_keywords %}
+    <div class="alert alert-info">
+        <strong>Want to stay updated?</strong><br>
+        Select keywords to subscribe:
+
+        <div class="mt-2 mb-2 d-flex flex-wrap gap-2" id="keywordButtons">
+            <form id="multiSubscribeForm" method="post" action="/subscribe">
+                <div class="mt-2 mb-2 d-flex flex-wrap gap-2">
+                    {% for kw in new_keywords %}
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" name="keywords" value="{{ kw }}"
+                            id="kw-sub-{{ kw }}">
+                        <label class="form-check-label" for="kw-sub-{{ kw }}">{{ kw }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+                <!-- <button type="submit" class="btn btn-outline-secondary mt-2">🔔 Subscribe to Selected</button> -->
+                <button type="button" id="subscribeSelectedBtn" class="btn btn-outline-secondary mt-2">🔔 Subscribe to
+                    Selected
+                    Keywords</button>
+
+            </form>
+        </div>
+
+        <!-- <button id="subscribeBtn" class="btn btn-outline-secondary mt-2">🔔 Subscribe to All Selected</button> -->
+    </div>
+    {% endif %}
+
+    <!-- Active Keyword Chips -->
+    <div class="mb-3">
+        {% for kw in request.query_params.getlist('keyword') %}
+        <span class="badge rounded-pill bg-primary me-1">
+            {{ kw }}
+            <a href="#" onclick="removeKeyword('{{ kw }}')" class="text-white ms-1"
+                style="text-decoration: none;">&times;</a>
+        </span>
+        {% endfor %}
+    </div>
+
+
+    <!-- <form method="get" class="mb-3">
+        <label for="keywords">Filter by keywords:</label>
+        <select class="form-select" name="keywords" id="keywords" multiple>
+            {% for kw in all_keywords %}
+            <option value="{{ kw }}" {% if kw in request.query_params.getlist('keywords') %}selected{% endif %}>{{ kw }}
+            </option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary mt-2">Search</button>
+    </form> -->
+
+    <ul id="keywordSuggestions" class="list-group position-absolute" style="z-index: 1000;"></ul>
+
+    <!-- Subscribed Keywords as Quick Filters -->
+    {% if user and user.subscribed_keywords %}
+    <div class="mb-3">
+        <small class="text-muted">Quick Filters from subscribed Keywords:</small><br>
+        {% for kw in user.subscribed_keywords[:5] %}
+        <a href="/?keyword={{ kw }}" class="badge bg-secondary text-light me-1">
+            {{ kw }}
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if user and not user.subscribed_keywords %}
+    <div class="alert alert-info">
+        <strong>New here?</strong> Subscribe to get personalized job recommendations!
+        <form method="post" action="/subscribe-keywords">
+            {% for kw in top_keywords[:10] %}
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" name="keywords" value="{{ kw }}" id="kw-{{ kw }}">
+                <label class="form-check-label" for="kw-{{ kw }}">{{ kw }}</label>
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-sm btn-primary mt-2">Subscribe</button>
+        </form>
+    </div>
+    {% endif %}
+
+
+
+    <!-- {% if user.subscribed_keywords %}
+    <div class="mb-3">
+        <strong>My Subscribed Keywords:</strong><br>
+        {% for kw in user.subscribed_keywords %}
+        <a href="/?keyword={{ kw }}" class="badge bg-primary text-decoration-none me-1">
+            {{ kw }}
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %} -->
+    <div id="jobsContainer" class="row row-cols-1 row-cols-md-2 g-4">
+        {% for job in jobs %}
+        <div class="col" id="job-card-{{ job.id }}">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        {{ job.title }} @ {{ job.company }}
+                    </h5>
+                    <h6 class="card-subtitle mb-2 text-muted">
+                        {{ job.company }} – {{ job.location or "Unknown location" }}
+                    </h6>
+                    <p class="card-text">
+                        {{ job.snippet or job.description[:180] ~ '...' }}
+
+                    <details>
+                        <summary class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-info-circle-fill"></i> More Info
+                        </summary>
+                        <div class="mt-2">
+                            <p><b>Description:</b> {{ job.description or 'N/A' }}</p>
+                            <p><b>Requirements:</b> {{ job.requirements or 'N/A' }}</p>
+                            <p><b>Responsibilities:</b> {{ job.responsibilities or 'N/A' }}</p>
+                            <a href="#" onclick="this.closest('details').removeAttribute('open'); return false;">🔼 Less
+                                Info</a>
+                        </div>
+                    </details>
+
+
+                    </p>
+                    <small class="text-muted">
+                        {% if job.posted_time %}
+                        Posted on {{ job.posted_time.strftime('%Y-%m-%d') }}<br>
+                        {% endif %}
+                        SCRAPED AT {{ job.scraped_at.strftime('%Y-%m-%d %H:%M:%S') }}<br>
+                        VALIDATED: {{ job.validated }}
+                    </small>
+                </div>
+                <div class="card-footer">
+                    <div>
+                        <div class="d-flex flex-nowrap gap-2 overflow-auto"></div>
+                        {% if job.id in saved_job_ids %}
+                        <!-- Saved button -->
+                        <!-- <button class="btn btn-sm btn-success" onclick="unsaveJob({{ job.id }}, this)"> <i
+                                class="bi bi-bookmark-check"></i>✅Saved</button> -->
+                        <button class="btn btn-sm btn-success" onclick="unsaveJob({{ job.id }}, this)" title="Unsave">
+                            <i class="bi bi-bookmark-check-fill"></i>
+                        </button>
+                        {% else %}
+                        <!-- Save button -->
+                        <!-- <button class="btn btn-sm btn-outline-success" onclick="saveJob({{ job.id }}, this)">💾
+                            Save</button> -->
+                        <button class="btn btn-sm btn-outline-success" onclick="saveJob({{ job.id }}, this)"
+                            title="Save">
+                            <i class="bi bi-bookmark-plus"></i>
+                        </button>
+                        {% endif %}
+                        {% if job.link %}
+                        <!-- <a href="{{ job.link }}" target="_blank" class="btn btn-sm btn-outline-info">✅ Apply</a> -->
+                        <a href="{{ job.link }}" target="_blank" class="btn btn-sm btn-outline-info" title="Apply">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                        </a>
+                        {% endif %}
+                        <!-- <button class="btn btn-sm btn-outline-danger" onclick="openReportModal({{ job.id }})">🚫
+                            Report</button> -->
+                        <button class="btn btn-sm btn-outline-danger" onclick="openReportModal({{ job.id }})"
+                            title="Report">
+                            <i class="bi bi-flag-fill"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if keywords and not jobs %}
+    <div class="alert alert-info mt-3" id="noResultsBanner">
+        We’re fetching new jobs for: <strong>{{ keywords | join(", ") }}</strong>. Check back soon!
+    </div>
+    {% endif %}
+</div>
+
+<!-- Report Modal -->
+<div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="reportForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="reportModalLabel">Report Job</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="reportJobId" name="job_id">
+                    <label for="reportReason" class="form-label">Reason:</label>
+                    <textarea class="form-control" id="reportReason" name="reason" rows="3" required></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1100">
+    <div id="appToast" class="toast align-items-center text-white bg-success border-0" role="alert"
+        aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="toastBody">Toast message</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // Open modal with job ID
+        window.openReportModal = function (jobId) {
+            document.getElementById("reportJobId").value = jobId;
+            new bootstrap.Modal(document.getElementById("reportModal")).show();
+        };
+
+        // Save job function
+        window.saveJob = async function (jobId, button) {
+            try {
+                const res = await fetch(`/job/${jobId}/save`, {
+                    method: "POST",
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest"
+                    }
+                });
+
+                if (res.ok) {
+                    button.classList.remove("btn-outline-success");
+                    button.classList.add("btn-success");
+                    button.textContent = "Saved";
+                    button.setAttribute("onclick", `unsaveJob(${jobId}, this)`);
+                } else if (res.status === 401) {
+                    window.location.href = "/login";
+                } else {
+                    showToast("Failed to save job.");
+                }
+            } catch (err) {
+                showToast("Error saving job.");
+            }
+        };
+
+        // Unsave job function
+        window.unsaveJob = async function (jobId, button) {
+            try {
+                const res = await fetch(`/job/${jobId}/save`, {
+                    method: "DELETE",
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest"
+                    }
+                });
+
+                if (res.ok) {
+                    button.classList.remove("btn-success");
+                    button.classList.add("btn-outline-success");
+                    button.textContent = "💾 Save";
+                    button.setAttribute("onclick", `saveJob(${jobId}, this)`);
+                } else if (res.status === 401) {
+                    window.location.href = "/login";
+                } else {
+                    showToast("Failed to unsave job.");
+                }
+            } catch (err) {
+                showToast("Error unsaving job.");
+            }
+        };
+
+        // Toast logic
+        window.showToast = function (message) {
+            const toastBody = document.getElementById("toastBody");
+            toastBody.textContent = message;
+            const toast = new bootstrap.Toast(document.getElementById("appToast"));
+            toast.show();
+        };
+
+        // Report form submission
+        const form = document.getElementById("reportForm");
+        if (form) {
+            form.addEventListener("submit", async function (e) {
+                e.preventDefault();
+                const jobId = document.getElementById("reportJobId").value;
+                const reason = document.getElementById("reportReason").value;
+
+                try {
+                    const res = await fetch(`/report-job`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-Requested-With": "XMLHttpRequest"
+                        },
+                        body: JSON.stringify({ job_post_id: jobId, reason })
+                    });
+
+                    if (res.ok) {
+                        // Hide the modal
+                        bootstrap.Modal.getInstance(document.getElementById("reportModal")).hide();
+
+                        // Remove the job card from the DOM
+                        const jobCard = document.getElementById(`job-card-${jobId}`);
+                        if (jobCard) {
+                            jobCard.remove();
+                        }
+
+                        // Show success toast
+                        showToast("Job reported successfully.");
+                    } else {
+                        showToast("Failed to report job.");
+                    }
+                } catch (error) {
+                    showToast("Error reporting job.");
+                }
+            });
+        }
+
+
+        // ✅ Safely add listener only if button exists
+        const subscribeBtn = document.getElementById("subscribeSelectedBtn");
+
+        if (subscribeBtn) {
+            subscribeBtn.addEventListener("click", async () => {
+                const checkedBoxes = document.querySelectorAll('#multiSubscribeForm input[name="keywords"]:checked');
+                const selectedKeywords = Array.from(checkedBoxes).map(cb => cb.value);
+
+                if (selectedKeywords.length === 0) {
+                    alert("Please select at least one keyword.");
+                    return;
+                }
+
+                try {
+                    const res = await fetch("/subscribe", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-Requested-With": "XMLHttpRequest"
+                        },
+                        body: JSON.stringify({ keywords: selectedKeywords })
+                    });
+
+                    if (res.ok) {
+                        showToast("Subscribed successfully!");
+                        location.reload(); // ✅ Refresh UI if needed
+                    } else {
+                        const error = await res.json();
+                        showToast("Failed to subscribe: ");
+                        console.log("Failed to subscribe: " + (error.detail || res.statusText));
+                    }
+                } catch (err) {
+                    showToast("Error subscribing to keywords.");
+                    console.error("Error subscribing to keywords:", err);
+                }
+            });
+        }
+
+
+        // startPollingForJobs();
+        console.log("checking if need to scrpae , if epty not needed  " + window.keywordsToScrape.join(", "));
+        if (window.keywords.length == 0) {
+            console.log("no keywords to scrape, not starting polling");
+        }
+        else if (window.keywordsToScrape.length > 0) {
+            console.log("starting polling for fresh jobs for: " + window.keywordsToScrape.join(", "));
+            showToast("🔄 getting fresh job in the background for: " + window.keywordsToScrape.join(", "));
+            startPollingForJobs();
+        } else {
+            showToast("✅ All selected keywords are fresh jobs.");
+        }
+
+
+
+
+        window.loadedJobIds = Array.from(document.querySelectorAll("[id^='job-card-']"))
+            .map(el => parseInt(el.id.replace("job-card-", "")))
+            .filter(id => !isNaN(id));
+
+    });
+
+    function renderJobCard(job) {
+        const div = document.createElement("div");
+        div.className = "col";
+        div.innerHTML = `
+      <div class="card h-100 shadow-sm" id="job-card-${job.id}">
+        <div class="card-body">
+          <h5 class="card-title">${job.title} @ ${job.company}</h5>
+          <h6 class="card-subtitle mb-2 text-muted">${job.company} – ${job.location || "Unknown location"}</h6>
+          <p class="card-text">${job.snippet || (job.description || '').slice(0, 180)}...</p>
+          <details>
+            <summary class="btn btn-outline-secondary btn-sm">More Info</summary>
+            <div class="mt-2">
+              <p><b>Description:</b> ${job.description || 'N/A'}</p>
+              <p><b>Requirements:</b> ${job.requirements || 'N/A'}</p>
+              <p><b>Responsibilities:</b> ${job.responsibilities || 'N/A'}</p>
+              <a href="#" onclick="this.closest('details').removeAttribute('open'); return false;">🔼 Less Info</a>
+            </div>
+          </details>
+          <small class="text-muted">
+            ${job.posted_time ? `Posted on ${job.posted_time}` : ""}
+            <br>SCRAPED AT ${job.scraped_at || "N/A"}
+            <br>VALIDATED: ${job.validated ? "True" : "False"}
+          </small>
+        </div>
+        <div class="card-footer d-flex gap-2">
+          <button class="btn btn-sm btn-outline-success" onclick="saveJob(${job.id}, this)" title="Save">
+            <i class="bi bi-bookmark-plus"></i>
+          </button>
+          ${job.link ? `<a href="${job.link}" target="_blank" class="btn btn-sm btn-outline-info" title="Apply">
+            <i class="bi bi-box-arrow-up-right"></i></a>` : ""}
+          <button class="btn btn-sm btn-outline-danger" onclick="openReportModal(${job.id})" title="Report">
+            <i class="bi bi-flag-fill"></i>
+          </button>
+        </div>
+      </div>
+    `;
+        return div;
+    }
+
+    // function startPollingForJobs() {
+    //     if (!window.keywords || window.keywords.length === 0) return;
+
+    //     setTimeout(async () => {
+    //         try {
+    //             const url = `/scrape-from-user?${window.keywords.map(k => `keywords=${encodeURIComponent(k)}`).join("&")}`;
+
+    //             const res = await fetch(url, {
+    //                 headers: {
+    //                     "X-API-KEY": "YOUR_API_KEY" // 👈 insert your actual key or use env var on backend if public
+    //                 }
+    //             });
+    //             if (!res.ok) return;
+
+    //             const newJobs = await res.json();
+
+    //             const container = document.getElementById("jobsContainer");
+    //             newJobs.forEach(job => {
+    //                 const card = renderJobCard(job);
+    //                 container.prepend(card);
+    //             });
+
+    //             showToast("🎉 New jobs added!");
+    //         } catch (err) {
+    //             console.warn("Polling error:", err);
+    //         }
+    //     }, 6000);
+    // }
+
+    // second implement
+    // function startPollingForJobs() {
+    //     if (!window.keywords || window.keywords.length === 0) return;
+
+    //     setTimeout(async () => {
+    //         try {
+    //             const res = await fetch("/trigger-scrape-safe", {
+    //                 method: "POST",
+    //                 headers: {
+    //                     "Content-Type": "application/json"
+    //                 },
+    //                 body: JSON.stringify({ keywords: window.keywords })
+    //             });
+
+    //             if (!res.ok) return;
+
+    //             // Optionally, poll again later to refresh results from DB
+
+    //             showToast("🔄 Background scraping started...");
+    //         } catch (err) {
+    //             console.warn("Polling failed:", err);
+    //         }
+    //     }, 6000);
+    // }
+
+    function startPollingForJobs() {
+
+        // if (!window.keywords || window.keywords.length === 0) return;
+        const knownIds = Array.from(document.querySelectorAll("[id^='job-card-']"))
+            .map(el => parseInt(el.id.replace("job-card-", "")))
+            .filter(id => !isNaN(id));
+
+        console.log("🔁 Polling started for:", window.keywordsToScrape);
+        showToast("🔄 polling started... checking in 8 seconds");
+
+        setTimeout(async () => {
+            try {
+                const query = `/jobs/updates?${window.keywordsToScrape.map(k => `keywords=${encodeURIComponent(k)}`).join("&")}` +
+                    knownIds.map(id => `&known_ids=${id}`).join("");
+                console.log("🔄 Fetching updates from:", query);
+                const res = await fetch(query);
+                if (!res.ok) return;
+
+                const data = await res.json();
+                const newJobs = data.jobs;
+                console.log("🔄 New jobs found:", newJobs);
+
+                if (newJobs && newJobs.length > 0) {
+                    // alert("New jobs found: " + newJobs.map(job => job.title).join(", "));
+                    console.log("New jobs:", newJobs);
+                    const container = document.getElementById("jobsContainer");
+                    newJobs.forEach(job => {
+                        const card = renderJobCard(job);
+                        container.prepend(card);
+                    });
+                    showToast(`🎉 ${newJobs.length} new job(s) added!`);
+                } else {
+                    showToast("✅ No new jobs found.");
+                }
+            } catch (err) {
+                console.warn("❌ Failed to fetch updates", err);
+                showToast("Error checking for job updates.");
+            }
+        }, 8000);
+    }
+
+</script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // Collapse all other details when one is opened
+        document.querySelectorAll("details").forEach((detailEl) => {
+            detailEl.addEventListener("toggle", () => {
+                if (detailEl.open) {
+                    document.querySelectorAll("details").forEach((otherEl) => {
+                        if (otherEl !== detailEl) {
+                            otherEl.removeAttribute("open");
+                        }
+                    });
+                }
+            });
+        });
+    });
+</script>
+
+<!-- <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        const input = document.querySelector('input[name="keyword"]');
+        const suggestionBox = document.getElementById("keywordSuggestions");
+
+        let keywords = [];
+
+        try {
+            const res = await fetch("/keywords");
+            if (res.ok) keywords = await res.json();
+        } catch (e) {
+            console.error("Failed to fetch keywords:", e);
+        }
+
+        input.addEventListener("input", () => {
+            const query = input.value.toLowerCase();
+            suggestionBox.innerHTML = "";
+
+            if (!query) return;
+
+            const filtered = keywords.filter(k => k.toLowerCase().includes(query));
+            filtered.slice(0, 5).forEach(kw => {
+                const li = document.createElement("li");
+                li.className = "list-group-item list-group-item-action";
+                li.textContent = kw;
+                li.addEventListener("click", () => {
+                    input.value = kw;
+                    suggestionBox.innerHTML = "";
+                });
+                suggestionBox.appendChild(li);
+            });
+        });
+
+        // Hide suggestions on blur
+        input.addEventListener("blur", () => {
+            setTimeout(() => suggestionBox.innerHTML = "", 200); // allow click
+        });
+    });
+</script> -->
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        const selectEl = document.getElementById("keywords");
+        const suggestionBox = document.getElementById("keywordSuggestions");
+
+        let keywords = [];
+
+        try {
+            const res = await fetch("/keywords");
+            if (res.ok) keywords = await res.json();
+        } catch (e) {
+            console.error("Failed to fetch keywords:", e);
+        }
+
+        if (!selectEl) return;
+
+        selectEl.addEventListener("input", () => {
+            const query = selectEl.value.toLowerCase();
+            suggestionBox.innerHTML = "";
+
+            if (!query) return;
+
+            const filtered = keywords.filter(k => k.toLowerCase().includes(query));
+            filtered.slice(0, 5).forEach(kw => {
+                const li = document.createElement("li");
+                li.className = "list-group-item list-group-item-action";
+                li.textContent = kw;
+                li.addEventListener("click", () => {
+                    const option = [...selectEl.options].find(opt => opt.value === kw);
+                    if (option) option.selected = true;
+                    suggestionBox.innerHTML = "";
+                });
+                suggestionBox.appendChild(li);
+            });
+        });
+
+        selectEl.addEventListener("blur", () => {
+            setTimeout(() => (suggestionBox.innerHTML = ""), 200);
+        });
+    });
+
+</script>
+
+<script>
+    $(document).ready(function () {
+        $('#keywordSelect').select2({
+            placeholder: "Select keywords...",
+            closeOnSelect: false,  // Stay open to allow multi-select
+            allowClear: true,
+            tags: true  // Allow user to type new entries too
+        });
+    });
+</script>
+
+<script>
+    function removeKeyword(kwToRemove) {
+        const url = new URL(window.location.href);
+        const params = url.searchParams;
+        const keywords = params.getAll("keyword");
+
+        // Clear all current keywords
+        params.delete("keyword");
+
+        // Re-add all except the one to remove
+        keywords.forEach(kw => {
+            if (kw !== kwToRemove) {
+                params.append("keyword", kw);
+            }
+        });
+
+        // Redirect with updated params
+        window.location.href = `${url.pathname}?${params.toString()}`;
+    }
+</script>
+
+
+<script>
+    window.keywords = {{ keywords | default ([]) | tojson | safe }};
+    window.keywordsToScrape = {{ keywords_to_scrape | default ([]) | tojson | safe }};
+</script>
+
+
+
+
+<!-- Subscribe button new keywords -->
+<!-- <script>
+    document.getElementById("subscribeBtn").addEventListener("click", async () => {
+        const selected = $('#keywordSelect').val();  // 🔧 Change here
+        if (!selected || selected.length === 0) {
+            alert("Please select at least one keyword to subscribe.");
+            return;
+        }
+
+        try {
+            const res = await fetch("/subscribe", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                body: JSON.stringify({ keywords: selected })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                alert("✅ Subscribed to keywords:\n" + data.keywords.join(", "));
+            } else {
+                showToast("❌ Subscription failed: " + data.detail || "Unknown error");
+            }
+        } catch (err) {
+            console.error("Subscription error:", err);
+            showToast("❌ Network error while subscribing.");
+        }
+    });
+</script> -->
+
+
+
+
+{% endblock %}

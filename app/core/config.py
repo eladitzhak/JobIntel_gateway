@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     # google_redirect_uri: str = Field(..., alias="GOOGLE_REDIRECT_URI")
     session_secret: str = Field(..., alias="SESSION_SECRET")
 
+    # scrpaer settings
+    SCRAPER_API_KEY: str = Field(..., alias="SCRAPER_API_KEY")
+
     class Config:
         env_file = ".env"
         extra = "ignore"

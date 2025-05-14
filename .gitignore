@@ -18,3 +18,9 @@ Thumbs.db
 .venv/
 *.egg-info/
 *.lock
+app/routers/before_refator_readbility_10_46_9mayweb_routes - Copy (2).py
+app/routers/web_routes - Copy.py
+app/templates/before_json_submit_All_homepage - Copy (2).html
+app/templates/before_polling_homepage - Copy (2).html
+app/templates/homepage - Copy.html
+logs/JobIntel-gateway-app.log

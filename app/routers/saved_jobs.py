@@ -5,6 +5,7 @@ from app.core.database import get_db
 from app.models.saved_job import SavedJob
 from app.models.job_post import JobPost
 from app.schemas.saved_jobs import SaveJobResponse, SavedJobsResponse, SavedJobOut
+from fastapi.responses import JSONResponse
 
 
 router = APIRouter()
@@ -38,14 +39,16 @@ async def save_job(
 
     # Check if already saved
     saved_query = await db.execute(
-        select(SavedJob).where(SavedJob.user_id == user_id, SavedJob.job_id == job_id)
+        select(SavedJob).where(
+            SavedJob.user_id == user_id, SavedJob.job_post_id == job_id
+        )
     )
     already_saved = saved_query.scalars().first()
 
     if already_saved:
         raise HTTPException(status_code=400, detail="Job already saved")
 
-    saved = SavedJob(user_id=user_id, job_id=job_id)
+    saved = SavedJob(user_id=user_id, job_post_id=job_id)
     db.add(saved)
     await db.commit()
     await db.refresh(saved)
@@ -74,7 +77,9 @@ async def unsave_job(
     user_id = session_user["id"]
 
     saved_query = await db.execute(
-        select(SavedJob).where(SavedJob.user_id == user_id, SavedJob.job_id == job_id)
+        select(SavedJob).where(
+            SavedJob.user_id == user_id, SavedJob.job_post_id == job_id
+        )
     )
     saved = saved_query.scalars().first()
 
