@@ -17,4 +17,4 @@ class User(Base):
     last_login = Column(DateTime(timezone=True), nullable=True)
     name = Column(String, nullable=True)
     subscribed_keywords = Column(ARRAY(String), default=[])
-    last_seen = Column(DateTime(timezone=True))
+    last_seen = Column(DateTime(timezone=True), nullable=True)
