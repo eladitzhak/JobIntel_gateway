@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from app.models.reported_job import ReportedJob  # or your actual import path
 from fastapi import Form
 from datetime import datetime, timedelta, timezone
-from core.logger import logger
+from app.core.logger import logger
 
 import os
 
@@ -289,6 +289,7 @@ async def homepage(
     # Fetch saved job IDs for display
     job_ids = [job.id for job in filtered_jobs]
     saved_ids = await get_saved_job_ids_for_user(user_id, job_ids, db)
+    saved_job_ids = list(saved_ids)
 
     return templates.TemplateResponse(
         "homepage.html",
@@ -298,7 +299,7 @@ async def homepage(
             "user": user,
             "now": datetime.now(timezone.utc),
             "timedelta": timedelta,
-            "saved_job_ids": saved_ids,
+            "saved_job_ids": saved_job_ids,
             # "keyword": keyword,
             "top_keywords": top_keywords,
             "all_keywords": sorted(all_keywords),  # ← ADD THI

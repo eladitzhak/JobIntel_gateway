@@ -18,7 +18,7 @@ from app.routers import report
 from app.routers.web_routes import router as web_router
 from app.routers.keywords import router as keywords_router
 from app.middlewares import LoginTrackingMiddleware, RequestLoggingMiddleware
-from core.logger import logger
+from app.core.logger import logger
 
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles

@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, Request, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.database import get_db
+from fastapi.responses import JSONResponse
+
+from app.core.database import get_db, commit_or_rollback
+from app.core.logger import logger
 from app.models.saved_job import SavedJob
 from app.models.job_post import JobPost
 from app.schemas.saved_jobs import SaveJobResponse, SavedJobsResponse, SavedJobOut
-from fastapi.responses import JSONResponse
 
 
 router = APIRouter()
@@ -49,8 +51,13 @@ async def save_job(
         raise HTTPException(status_code=400, detail="Job already saved")
 
     saved = SavedJob(user_id=user_id, job_post_id=job_id)
-    db.add(saved)
-    await db.commit()
+
+    async with commit_or_rollback(
+        db, context=f"save-job user_id={user_id} job_id={job_id}"
+    ):
+        db.add(saved)
+        await db.flush()  # optional, makes sure `saved.id` is generated
+
     await db.refresh(saved)
 
     return {"message": "Job saved successfully"}
@@ -86,8 +93,12 @@ async def unsave_job(
     if not saved:
         raise HTTPException(status_code=404, detail="Saved job not found")
 
-    await db.delete(saved)
-    await db.commit()
+    async with commit_or_rollback(
+        db, context=f"unsave-job user_id={user_id} job_id={job_id}"
+    ):
+        # Delete the saved job
+        await db.delete(saved)
+        await db.flush()
 
     return {"message": "Job unsaved successfully"}
 

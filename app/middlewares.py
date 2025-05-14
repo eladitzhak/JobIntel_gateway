@@ -6,7 +6,7 @@ import pytz
 
 from app.core.database import get_db
 from app.models.user import User
-from core.logger import logger
+from app.core.logger import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 

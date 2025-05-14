@@ -274,6 +274,9 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+    window.savedJobIds = {{ saved_job_ids | tojson | safe }};
+</script>
 
 <script>
     document.addEventListener("DOMContentLoaded", () => {
@@ -294,9 +297,13 @@
                 });
 
                 if (res.ok) {
+                    // Add jobId to savedJobIds
+                    if (!window.savedJobIds.includes(jobId)) {
+                        window.savedJobIds.push(jobId);
+                    }
                     button.classList.remove("btn-outline-success");
                     button.classList.add("btn-success");
-                    button.textContent = "Saved";
+                    button.innerHTML = `<i class="bi bi-bookmark-check-fill"></i>`;
                     button.setAttribute("onclick", `unsaveJob(${jobId}, this)`);
                 } else if (res.status === 401) {
                     window.location.href = "/login";
@@ -305,6 +312,7 @@
                 }
             } catch (err) {
                 showToast("Error saving job.");
+                console.error("Error saving job:", err);
             }
         };
 
@@ -321,8 +329,10 @@
                 if (res.ok) {
                     button.classList.remove("btn-success");
                     button.classList.add("btn-outline-success");
-                    button.textContent = "💾 Save";
+                    button.className = "btn btn-sm btn-outline-success";
+                    button.innerHTML = `<i class="bi bi-bookmark-plus"></i>`;
                     button.setAttribute("onclick", `saveJob(${jobId}, this)`);
+                    button.setAttribute("title", "Save");
                 } else if (res.status === 401) {
                     window.location.href = "/login";
                 } else {
@@ -443,10 +453,21 @@
     });
 
     function renderJobCard(job) {
+        const isSaved = window.savedJobIds.includes(job.id);
+
+        const saveButtonHtml = isSaved
+            ? `<button class="btn btn-sm btn-success" onclick="unsaveJob(${job.id}, this)" title="Unsave">
+                <i class="bi bi-bookmark-check-fill"></i>
+            </button>`
+            : `<button class="btn btn-sm btn-outline-success" onclick="saveJob(${job.id}, this)" title="Save">
+                <i class="bi bi-bookmark-plus"></i>
+            </button>`;
+
         const div = document.createElement("div");
         div.className = "col";
+        div.id = `job-card-${job.id}`;
         div.innerHTML = `
-      <div class="card h-100 shadow-sm" id="job-card-${job.id}">
+      <div class="card h-100 shadow-sm">
         <div class="card-body">
           <h5 class="card-title">${job.title} @ ${job.company}</h5>
           <h6 class="card-subtitle mb-2 text-muted">${job.company} – ${job.location || "Unknown location"}</h6>
@@ -467,9 +488,7 @@
           </small>
         </div>
         <div class="card-footer d-flex gap-2">
-          <button class="btn btn-sm btn-outline-success" onclick="saveJob(${job.id}, this)" title="Save">
-            <i class="bi bi-bookmark-plus"></i>
-          </button>
+          ${saveButtonHtml}
           ${job.link ? `<a href="${job.link}" target="_blank" class="btn btn-sm btn-outline-info" title="Apply">
             <i class="bi bi-box-arrow-up-right"></i></a>` : ""}
           <button class="btn btn-sm btn-outline-danger" onclick="openReportModal(${job.id})" title="Report">
@@ -480,6 +499,7 @@
     `;
         return div;
     }
+
 
     // function startPollingForJobs() {
     //     if (!window.keywords || window.keywords.length === 0) return;
@@ -574,6 +594,22 @@
                 showToast("Error checking for job updates.");
             }
         }, 8000);
+    }
+
+    function saveButton(jobId) {
+        if (window.savedJobIds.includes(jobId)) {
+            return `
+            <button class="btn btn-sm btn-success" onclick="unsaveJob(${jobId}, this)" title="Unsave">
+                <i class="bi bi-bookmark-check-fill"></i>
+            </button>
+        `;
+        } else {
+            return `
+            <button class="btn btn-sm btn-outline-success" onclick="saveJob(${jobId}, this)" title="Save">
+                <i class="bi bi-bookmark-plus"></i>
+            </button>
+        `;
+        }
     }
 
 </script>
