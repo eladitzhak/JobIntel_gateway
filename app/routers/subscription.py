@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+
 from app.schemas.subscribe import SubscribeRequest
-from app.core.database import get_db
+from app.core.database import commit_or_rollback, get_db
 from app.models.user import User
 
 router = APIRouter()
@@ -33,7 +35,8 @@ async def subscribe(
     merged_keywords = list(set(existing_keywords + new_keywords))
 
     user.subscribed_keywords = merged_keywords
-    await db.commit()
+    async with commit_or_rollback(db, context=f"subscribe user_id={user_id}"):
+        pass
     await db.refresh(user)
 
     return {

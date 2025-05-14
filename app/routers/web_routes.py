@@ -13,13 +13,15 @@ from datetime import datetime, timedelta, timezone
 from app.models.reported_job import ReportedJob  # or your actual import path
 from fastapi import Form
 from datetime import datetime, timedelta, timezone
-from app.core.logger import logger
-
 import os
 
+
+from app.core.logger import logger
 from app.models.saved_job import SavedJob
 from app.models.user import User
 from app.schemas.job import JobOut, JobsResponse
+from app.core.database import commit_or_rollback
+
 
 # TODO:ADD TO ENV
 SCRAPER_SERVICE_URL = (
@@ -335,7 +337,8 @@ async def subscribe_keywords(
     user = await db.get(User, user_id)
 
     user.subscribed_keywords = list(set(user.subscribed_keywords or []) | set(keywords))
-    await db.commit()
+    async with commit_or_rollback(db, context="subscribe-keywords"):
+        pass
 
     return RedirectResponse("/", status_code=303)
 

@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, Request, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from app.core.database import get_db
+
+
+from app.core.database import commit_or_rollback, get_db
 from app.models.job_view import JobView
 from app.schemas.viewed_jobs import ViewedJobsResponse, ViewedJobOut
 
@@ -22,7 +24,10 @@ async def mark_job_as_viewed(
 
     view = JobView(user_id=user_id, job_post_id=job_id)
     db.add(view)
-    await db.commit()
+    async with commit_or_rollback(
+        db, context=f"view-job user_id={user_id} job_id={job_id}"
+    ):
+        pass
     await db.refresh(view)
 
     return {"message": "Job marked as viewed successfully"}

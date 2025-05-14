@@ -3,13 +3,16 @@ from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, func, update
+from sqlalchemy.exc import SQLAlchemyError
+from fastapi import status
+from datetime import datetime
+
+
 from app.core.database import get_db
 from app.schemas.job import JobsResponse, JobOut
 from app.models.job_post import JobPost  # adjust import path if needed
 from app.models.job_view import JobView  # Import JobView
-from sqlalchemy.exc import SQLAlchemyError
-from fastapi import status
-from datetime import datetime
+from app.core.database import commit_or_rollback
 
 
 router = APIRouter()
@@ -115,13 +118,11 @@ async def get_job_details(
             )
         else:
             # If no existing view, create a new one
+
             db.add(JobView(user_id=user_id, job_post_id=job_id))
-        try:
-            await db.commit()
-        except Exception as e:
-            # Handle commit failure (e.g., rollback, log error, etc.)
-            import logging
-            logging.error(f"Failed to commit transaction for job view update: {e}")
-            await db.rollback()  # for safety
+        async with commit_or_rollback(
+            db, context=f"apply-job user_id={user_id} job_id={job_id}"
+        ):
+            pass
 
     return job

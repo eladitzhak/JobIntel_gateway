@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.core.database import get_db
+
+
+from app.core.database import commit_or_rollback, get_db
 from app.models.job_post import JobPost
 from app.models.job_application import JobApplication
 
@@ -39,7 +41,10 @@ async def mark_job_as_applied(
     # Save new application
     application = JobApplication(user_id=user_id, job_id=job_id)
     db.add(application)
-    await db.commit()
+    async with commit_or_rollback(
+        db, context=f"apply-job user_id={user_id} job_id={job_id}"
+    ):
+        pass
     await db.refresh(application)
 
     return {"message": "Marked job as applied successfully"}

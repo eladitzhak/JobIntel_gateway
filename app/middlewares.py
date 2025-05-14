@@ -2,12 +2,14 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 from datetime import datetime
+from sqlalchemy.ext.asyncio import AsyncSession
 import pytz
+
 
 from app.core.database import get_db
 from app.models.user import User
 from app.core.logger import logger
-from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.database import commit_or_rollback
 
 
 class LoginTrackingMiddleware(BaseHTTPMiddleware):
@@ -25,7 +27,8 @@ class LoginTrackingMiddleware(BaseHTTPMiddleware):
                         if db_user and db_user.last_login is None:
                             db_user.last_login = current_time_israel
                         db_user.last_seen = current_time_israel
-                        await db.commit()
+                        async with commit_or_rollback(db, context="login-tracking"):
+                            pass
                 except Exception as e:
                     logger.info("⚠️ Login tracking middleware error:", e)
         else:

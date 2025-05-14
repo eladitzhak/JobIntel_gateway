@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
-from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.core.database import get_db
+
+
+from app.core.database import commit_or_rollback, get_db
 from app.models.reported_job import ReportedJob
-from app.models.user import User
 from app.models.job_post import JobPost
 from app.schemas.report import ReportJobRequest, ReportJobResponse
 
@@ -45,11 +45,15 @@ async def report_job(
         user_id=user_id,
         job_post_id=report_data.job_post_id,
         reason=report_data.reason,
-        free_text=html.escape(report_data.free_text) if report_data.free_text else None,  # Sanitize free_text to prevent XSS
+        free_text=html.escape(report_data.free_text)
+        if report_data.free_text
+        else None,  # Sanitize free_text to prevent XSS
     )
 
     db.add(report)
-    await db.commit()
-    await db.refresh(report)
+    async with commit_or_rollback(
+        db, context=f"report-job user_id={user_id} job_id={report_data.job_post_id}"
+    ):
+        pass
 
     return ReportJobResponse(message="Job reported successfully")

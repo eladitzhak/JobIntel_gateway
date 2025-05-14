@@ -7,7 +7,10 @@ from app.core.database import get_db
 from app.models.user import User  # Make sure lowercase if needed
 from sqlalchemy import select
 from datetime import datetime, timezone
+
+
 from app.core.logger import logger
+from app.core.database import commit_or_rollback
 
 
 router = APIRouter()
@@ -24,16 +27,16 @@ oauth.register(
 
 @router.get("/login", include_in_schema=True)
 async def login(request: Request):
-    print("Login route called")
     if request.session.get("user"):
+        logger.info("User already logged in, redirecting to home")
         return RedirectResponse(url="/")
+    logger.info("User not logged in, redirecting to Google login")
     redirect_uri = request.url_for("auth_callback")
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 
 @router.get("/login/callback", name="auth_callback")
 async def auth_callback(request: Request, db: Session = Depends(get_db)):
-    print("Auth callback route called")
     token = await oauth.google.authorize_access_token(request)
     user_info = await oauth.google.userinfo(token=token)
 
@@ -52,12 +55,14 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
             last_login=datetime.now(timezone.utc),  # ✅ here
         )
         db.add(user)
-        await db.commit()
+        async with commit_or_rollback(db, context="auth-new-user"):
+            pass
         await db.refresh(user)
     else:
-        print("User already exists, updating last login")
+        logger.info(f"User {user} already exists, updating last login")
         user.last_login = datetime.now(timezone.utc)
-        await db.commit()
+        async with commit_or_rollback(db, context="auth-new-user"):
+            pass
         await db.refresh(user)
 
     request.session["user"] = {
